@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>SuccessFactors HR Transformation — Status Report</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0f1420; color: #e6e9f0; min-height: 100vh; padding-bottom: 40px;
+  }
+  header {
+    padding: 18px 16px 0; background: linear-gradient(135deg, #1a2138, #10141f);
+    border-bottom: 1px solid #262e45; position: sticky; top: 0; z-index: 10;
+  }
+  header h1 { font-size: 1.2rem; font-weight: 700; }
+  header .sub { font-size: 0.78rem; color: #8b93a8; margin-top: 3px; padding-bottom: 12px; }
+  .tabs { display: flex; gap: 4px; padding: 0 16px; }
+  .tab-btn {
+    flex: 1; background: transparent; border: none; color: #8b93a8; font-weight: 700;
+    font-size: 0.82rem; padding: 10px 8px; border-bottom: 2px solid transparent;
+    cursor: pointer; font-family: inherit;
+  }
+  .tab-btn.active { color: #e6e9f0; border-bottom: 2px solid #4f8cff; }
+  .token-bar { display: flex; gap: 8px; align-items: center; padding: 10px 16px; background: #171d30; border-bottom: 1px solid #262e45; flex-wrap: wrap; }
+  .token-bar input {
+    flex: 1; min-width: 140px; background: #0f1420; border: 1px solid #2f3752; color: #e6e9f0;
+    border-radius: 8px; padding: 8px 10px; font-size: 0.8rem;
+  }
+  button { font-family: inherit; border: none; border-radius: 8px; padding: 8px 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: opacity 0.15s; }
+  button:active { opacity: 0.7; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-unlock { background: #4f8cff; color: white; padding: 9px 12px; white-space: nowrap; }
+  .lock-status { font-size: 0.7rem; color: #8b93a8; padding: 0 16px 8px; }
+  .lock-status .tag { font-weight: 700; margin-right: 10px; }
+  .lock-status .on { color: #6fd3a3; }
+  .setup-banner { background: #35191c; color: #f6b8bf; font-size: 0.78rem; padding: 12px 16px; line-height: 1.5; }
+  .setup-banner code { background: #1c0f10; padding: 1px 5px; border-radius: 4px; }
+  main { padding: 16px; max-width: 720px; margin: 0 auto; }
+
+  /* Search */
+  .search-wrap { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+  .search-input {
+    flex: 1; background: #171d30; border: 1px solid #262e45; color: #e6e9f0;
+    border-radius: 10px; padding: 10px 12px; font-size: 0.85rem; font-family: inherit;
+  }
+  .search-input:focus { outline: none; border-color: #4f8cff; }
+  .search-clear { background: #232b45; color: #cdd3e5; white-space: nowrap; }
+  .search-meta { font-size: 0.72rem; color: #6b7386; margin: -6px 0 12px; }
+  .search-path { font-size: 0.68rem; color: #6b7386; margin-top: 2px; }
+
+  /* Dashboard */
+  .dash-card { background: #171d30; border: 1px solid #262e45; border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+  .dash-card h2 { font-size: 0.92rem; font-weight: 700; margin-bottom: 12px; }
+  .overall-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .overall-top span:first-child { font-size: 0.85rem; color: #a8b0c3; }
+  .overall-pct { font-size: 1.4rem; font-weight: 800; color: #6fd3a3; }
+  .bar-bg { background: #262e45; border-radius: 8px; height: 10px; overflow: hidden; }
+  .bar-fill { height: 100%; background: linear-gradient(90deg, #4f8cff, #6fd3a3); border-radius: 8px; transition: width 0.4s ease; }
+  .pva-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid #1e2438; font-size: 0.82rem; }
+  .pva-row:last-child { border-bottom: none; }
+  .pva-title { color: #c3c8d6; font-weight: 600; }
+  .pva-dates { display: flex; gap: 14px; font-size: 0.74rem; color: #8b93a8; }
+  .pva-dates b { color: #c3c8d6; }
+  .delay-flag { display: inline-block; margin-left: 6px; font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 8px; background: #35191c; color: #f07a86; }
+  .pie-row { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+  .pie-donut { width: 140px; height: 140px; border-radius: 50%; flex-shrink: 0; }
+  .pie-legend { flex: 1; min-width: 140px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: #c3c8d6; padding: 4px 0; }
+  .legend-swatch { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+  .legend-count { margin-left: auto; font-weight: 700; color: #e6e9f0; }
+  .bubble-wrap { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; justify-content: center; padding: 8px 0 4px; }
+  .bubble-item { display: flex; flex-direction: column; align-items: center; cursor: pointer; }
+  .bubble { border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #0f1420; transition: transform 0.15s, box-shadow 0.15s; border: 2px solid transparent; }
+  .bubble:hover { transform: scale(1.06); }
+  .bubble.selected { border-color: #e6e9f0; box-shadow: 0 0 0 3px rgba(230,233,240,0.15); }
+  .bubble-green { background: #6fd3a3; }
+  .bubble-red { background: #f07a86; }
+  .bubble-label { font-size: 0.72rem; color: #a8b0c3; margin-top: 6px; max-width: 90px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bubble-count { font-size: 0.68rem; color: #6b7386; }
+  .owner-detail { margin-top: 16px; border-top: 1px solid #262e45; padding-top: 12px; }
+  .owner-detail-title { font-size: 0.85rem; font-weight: 700; margin-bottom: 8px; }
+  .owner-detail-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #1e2438; font-size: 0.8rem; }
+  .owner-detail-row:last-child { border-bottom: none; }
+  .odr-title { color: #c3c8d6; }
+  .odr-serial { color: #6b7386; font-weight: 700; margin-right: 6px; }
+  .empty-note { font-size: 0.78rem; color: #6b7386; padding: 4px 0; }
+  .chart-filter-note { font-size: 0.72rem; color: #6b7386; margin-bottom: 10px; }
+  .chart-filter-note b { color: #9db3e0; }
+  .clear-filter { background: #232b45; color: #cdd3e5; font-size: 0.7rem; padding: 4px 9px; margin-left: 8px; }
+
+  /* Activities — breadcrumb + compact rows */
+  .breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 0.76rem; margin-bottom: 12px; color: #6b7386; }
+  .crumb-btn { background: none; border: none; color: #9db3e0; font-weight: 600; font-size: 0.76rem; padding: 2px 4px; cursor: pointer; }
+  .crumb-sep { color: #444d68; }
+  .crumb-current { color: #c3c8d6; font-weight: 600; padding: 2px 4px; }
+
+  .detail-card { background: #171d30; border: 1px solid #262e45; border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+  .detail-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+  .detail-title { font-size: 1.02rem; font-weight: 700; }
+  .detail-owner { font-size: 0.76rem; color: #8b93a8; margin-top: 2px; }
+  .status-pill { font-size: 0.66rem; font-weight: 700; padding: 3px 8px; border-radius: 20px; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.02em; flex-shrink: 0; }
+  .pill-green { background: #16321f; color: #6fd3a3; }
+  .pill-yellow { background: #332b12; color: #e8c256; }
+  .pill-red { background: #35191c; color: #f07a86; }
+  .pill-blue { background: #142236; color: #6ab3f0; }
+  .progress-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .progress-row .bar-bg { flex: 1; height: 8px; }
+  .progress-row .pct-label { font-size: 0.78rem; font-weight: 700; width: 34px; text-align: right; }
+  .rollup-note { font-size: 0.68rem; color: #6b7386; margin-bottom: 8px; }
+  .date-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
+  .date-block { font-size: 0.73rem; }
+  .date-block .label { color: #6b7386; display: block; margin-bottom: 2px; }
+  .date-block .value { color: #c3c8d6; font-weight: 600; }
+  .dep-line { font-size: 0.72rem; color: #8b93a8; margin-bottom: 8px; white-space: pre-wrap; }
+  .note { font-size: 0.82rem; color: #c3c8d6; line-height: 1.4; margin-bottom: 8px; white-space: pre-wrap; }
+  .meta { font-size: 0.68rem; color: #6b7386; margin-bottom: 10px; }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn-edit { background: #232b45; color: #cdd3e5; }
+  .btn-add { background: #4f8cff; color: white; padding: 11px; font-size: 0.82rem; border-radius: 10px; width: 100%; margin-top: 4px; }
+  .btn-save { background: #6fd3a3; color: #0f1420; }
+  .btn-cancel { background: #262e45; color: #a8b0c3; }
+  .btn-del { background: #35191c; color: #f07a86; }
+
+  .row-list { background: #171d30; border: 1px solid #262e45; border-radius: 14px; overflow: hidden; margin-bottom: 12px; }
+  .compact-row { display: flex; align-items: center; gap: 10px; padding: 13px 14px; border-bottom: 1px solid #1e2438; cursor: pointer; }
+  .compact-row:last-child { border-bottom: none; }
+  .compact-row:active { background: #1a2033; }
+  .row-serial { font-size: 0.68rem; color: #6b7386; font-weight: 700; min-width: 26px; flex-shrink: 0; }
+  .row-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .dot-green { background: #6fd3a3; } .dot-yellow { background: #e8c256; } .dot-red { background: #f07a86; } .dot-blue { background: #6ab3f0; }
+  .row-titlewrap { flex: 1; min-width: 0; }
+  .row-title { font-size: 0.86rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row-owner { font-size: 0.68rem; color: #8b93a8; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row-pct { font-size: 0.72rem; color: #8b93a8; font-weight: 700; flex-shrink: 0; }
+  .row-chevron { font-size: 0.7rem; color: #4a5372; flex-shrink: 0; }
+  .row-empty-note { padding: 20px; text-align: center; font-size: 0.8rem; color: #6b7386; }
+
+  .edit-panel { margin-top: 4px; }
+  .edit-panel input, .edit-panel textarea, .edit-panel select {
+    width: 100%; background: #0f1420; border: 1px solid #2f3752; color: #e6e9f0;
+    border-radius: 8px; padding: 9px 10px; font-size: 0.85rem; margin-bottom: 8px; font-family: inherit;
+  }
+  .edit-panel input:disabled, .edit-panel textarea:disabled { opacity: 0.4; cursor: not-allowed; }
+  .edit-panel textarea { min-height: 50px; resize: vertical; }
+  .edit-label { font-size: 0.68rem; color: #8b93a8; margin-bottom: 4px; display: block; }
+  .edit-label.pm-label { color: #e0b567; }
+  .lock-note { font-size: 0.65rem; color: #6b7386; margin: -4px 0 8px; }
+  .range-row { display: flex; align-items: center; gap: 10px; }
+  .range-row input[type=range] { flex: 1; margin-bottom: 0; }
+  .section-divider { font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.04em; color: #6b7386; margin: 12px 0 6px; border-top: 1px solid #262e45; padding-top: 9px; }
+
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: #262e45; color: #e6e9f0; padding: 10px 18px; border-radius: 20px; font-size: 0.82rem;
+    opacity: 0; transition: all 0.25s ease; pointer-events: none; z-index: 100; border: 1px solid #3a4361;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="setup-banner" id="setupBanner" style="display:none;"></div>
+
+<header>
+  <h1>SuccessFactors HR Transformation</h1>
+  <div class="sub">Live status report · SASREF · v2.0</div>
+  <div class="tabs">
+    <button class="tab-btn active" id="tabDashBtn">Dashboard</button>
+    <button class="tab-btn" id="tabActBtn">Project Activities</button>
+  </div>
+</header>
+
+<div class="token-bar" id="tokenBar" style="display:none;">
+  <input type="password" id="unlockTokenInput" placeholder="Enter your access code" />
+  <button class="btn-unlock" id="unlockBtn">Unlock</button>
+</div>
+<div class="lock-status" id="lockStatus">
+  <span class="tag">🔒 Team: locked</span><span class="tag">🔒 TL: locked</span><span class="tag">🔒 PM: locked</span>
+</div>
+
+<main>
+  <div id="dashboardView"></div>
+  <div id="activitiesView" style="display:none;"></div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+/* =========================================================================
+   VERSION: v2.0 — deployed fresh (drill-down navigation, fuzzy search,
+   dashboard charts, 3-tier access codes, PM Excel export/import)
+   =========================================================================
+   GITHUB GIST SETUP
+   1. gist.github.com -> new gist -> filename: status-data.json
+      content: {"items":[]}
+   2. Copy the Gist ID from the URL after your username, paste into GIST_ID.
+   3. ACCESS CODES — only required on the Project Activities tab. The
+      Dashboard is view-only for everyone, no code needed.
+      - TEAM_ACCESS_CODE: edit Status, Progress (leaf items), Actual/Revised
+        date, Comments, Dependencies (free text) on existing items.
+      - TL_ACCESS_CODE: everything Team can do, PLUS create/delete leading
+        activities and sub-items at any depth, and edit Title/Owner.
+        Cannot set Planned Date.
+      - PM_ACCESS_CODE: everything TL can do, PLUS set Planned Date.
+   4. WRITE_TOKEN: one GitHub Personal Access Token (gist scope) used to
+      save. Fill this in yourself, directly in this file, after
+      downloading — do not paste a real token into a chat.
+
+      REMINDER: this file is public once deployed to GitHub Pages.
+      Anyone can view its source and read these values. This is a
+      UI-level guardrail, not real per-field security.
+   ========================================================================= */
+const GIST_ID = "97474ad61c5d5923b0d849528e4241e9";
+const GIST_FILENAME = "status-data.json";
+const TEAM_ACCESS_CODE = "team123";
+const TL_ACCESS_CODE = "tl123";
+const PM_ACCESS_CODE = "pm123";
+const WRITE_TOKEN = "PASTE_YOUR_GIST_WRITE_TOKEN_HERE";
+
+const GIST_CONFIGURED = GIST_ID !== "YOUR_GIST_ID";
+const CODES_CONFIGURED = TEAM_ACCESS_CODE !== "CHANGE_ME_TEAM_CODE" && TL_ACCESS_CODE !== "CHANGE_ME_TL_CODE" && PM_ACCESS_CODE !== "CHANGE_ME_PM_CODE";
+const WRITE_TOKEN_CONFIGURED = WRITE_TOKEN !== "PASTE_YOUR_GIST_WRITE_TOKEN_HERE";
+
+let hasTeam = false, hasTL = false, hasPM = false;
+let items = [];
+let editingId = null;
+let activeTab = 'dashboard';
+let selectedOwner = null;
+let searchQuery = '';
+let currentParentId = null; // drill-down location in Activities tab; null = top level
+
+const toastEl = document.getElementById('toast');
+const STATUS_OPTIONS = [
+  {v:'On Track', c:'pill-green', dot:'dot-green', hex:'#6fd3a3'},
+  {v:'At Risk', c:'pill-yellow', dot:'dot-yellow', hex:'#e8c256'},
+  {v:'Blocked', c:'pill-red', dot:'dot-red', hex:'#f07a86'},
+  {v:'Complete', c:'pill-blue', dot:'dot-blue', hex:'#6ab3f0'}
+];
+const CHART_PALETTE = ['#4f8cff','#6fd3a3','#e8c256','#f07a86','#a78bfa','#6ab3f0','#f0a35f','#c084fc','#5fd0d0','#f06fb0'];
+
+function statusClass(status){ const f = STATUS_OPTIONS.find(s => s.v === status); return f ? f.c : 'pill-blue'; }
+function statusDot(status){ const f = STATUS_OPTIONS.find(s => s.v === status); return f ? f.dot : 'dot-blue'; }
+function showToast(msg){ toastEl.textContent = msg; toastEl.classList.add('show'); setTimeout(()=> toastEl.classList.remove('show'), 1800); }
+function uid(){ return 'item_' + Date.now() + '_' + Math.random().toString(36).slice(2,7); }
+function hasTeamAccess(){ return hasTeam || hasTL || hasPM; }
+function hasStructuralAccess(){ return hasTL || hasPM; }
+function hasPlannedAccess(){ return hasPM; }
+
+function defaultItems(){
+  const now = new Date();
+  const iso = (daysAgo) => { const d = new Date(now); d.setDate(d.getDate() - daysAgo); return d.toISOString(); };
+  const lead1 = uid(), lead2 = uid();
+  const c1 = uid(), c2 = uid(), c3 = uid();
+  return [
+    { id: lead1, parentId: null, title: 'Time & Travel Management', owner: 'Ashly Titus', status: 'On Track', progress: 90, plannedDate: '2026-07-08', etc: '2026-07-10', note: 'Cutover activities on track for early July go-live.', dependenciesText: '', progressHistory: [{progress:40,date:iso(20)},{progress:70,date:iso(10)},{progress:90,date:iso(1)}], updated: iso(1) },
+    { id: c1, parentId: lead1, title: 'UAT Sign-off', owner: 'Ashly Titus', status: 'Complete', progress: 100, plannedDate: '2026-07-01', etc: '2026-07-01', note: 'Signed off by HR ops.', dependenciesText: '', progressHistory: [{progress:50,date:iso(15)},{progress:100,date:iso(3)}], updated: iso(3) },
+    { id: c2, parentId: lead1, title: 'Cutover Rehearsal', owner: 'Ashly Titus', status: 'At Risk', progress: 60, plannedDate: '2026-07-05', etc: '2026-07-08', note: 'Slipped after data load issues surfaced during rehearsal; work re-planned.', dependenciesText: 'Depends on 1.1 UAT Sign-off', progressHistory: [{progress:30,date:iso(18)},{progress:65,date:iso(12)},{progress:90,date:iso(7)},{progress:50,date:iso(4)},{progress:60,date:iso(1)}], updated: iso(1) },
+    { id: lead2, parentId: null, title: 'Payroll', owner: 'Ashly Titus', status: 'On Track', progress: 85, plannedDate: '2026-07-12', etc: '2026-07-15', note: 'Parallel run in progress.', dependenciesText: '', progressHistory: [{progress:30,date:iso(20)},{progress:60,date:iso(10)},{progress:85,date:iso(1)}], updated: iso(1) },
+    { id: c3, parentId: lead2, title: 'Finance Validation', owner: 'Ashly Titus', status: 'On Track', progress: 70, plannedDate: '2026-07-10', etc: '2026-07-12', note: 'Awaiting sign-off from finance controller.', dependenciesText: 'Depends on 1.1 UAT Sign-off', progressHistory: [{progress:20,date:iso(16)},{progress:45,date:iso(9)},{progress:70,date:iso(1)}], updated: iso(1) }
+  ];
+}
+
+// ---- Persistence ----
+async function fetchFromGist(){
+  const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, { headers: { 'Accept': 'application/vnd.github+json' } });
+  if(!res.ok) throw new Error('Gist fetch failed: ' + res.status);
+  const data = await res.json();
+  const file = data.files[GIST_FILENAME];
+  if(!file) throw new Error('File not found in gist: ' + GIST_FILENAME);
+  const content = file.content ? JSON.parse(file.content) : { items: [] };
+  return content.items || [];
+}
+async function saveToGist(){
+  if(!WRITE_TOKEN_CONFIGURED){ showToast('Write token not set up in this file yet'); return false; }
+  try {
+    const body = { files: { [GIST_FILENAME]: { content: JSON.stringify({ items }, null, 2) } } };
+    const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+      method: 'PATCH',
+      headers: { 'Accept': 'application/vnd.github+json', 'Authorization': `token ${WRITE_TOKEN}` },
+      body: JSON.stringify(body)
+    });
+    if(!res.ok){ showToast(res.status === 401 ? 'Write token invalid or expired' : 'Save failed (' + res.status + ')'); return false; }
+    return true;
+  } catch(e){ console.error(e); showToast('Save failed — check connection'); return false; }
+}
+async function loadItems(showErr){
+  if(!GIST_CONFIGURED){ if(items.length === 0) items = defaultItems(); renderAll(); return; }
+  try {
+    const fresh = await fetchFromGist();
+    if(!editingId){ items = fresh.length ? fresh : defaultItems(); renderAll(); }
+  } catch(e){
+    console.error(e);
+    if(showErr) showToast('Could not load from Gist');
+    if(items.length === 0){ items = defaultItems(); renderAll(); }
+  }
+}
+async function persist(){ if(!GIST_CONFIGURED){ renderAll(); return; } const ok = await saveToGist(); if(ok) showToast('Saved'); renderAll(); }
+
+// ---- Helpers: hierarchy, serials, rollups ----
+function topLevelItems(){ return items.filter(i => !i.parentId); }
+function childrenOf(id){ return items.filter(i => i.parentId === id); }
+function computeSerials(){
+  const map = {};
+  function walk(parentId, prefix){
+    childrenOf(parentId).forEach((it, idx) => {
+      const serial = prefix ? `${prefix}.${idx + 1}` : String(idx + 1);
+      map[it.id] = serial;
+      walk(it.id, serial);
+    });
+  }
+  walk(null, '');
+  return map;
+}
+function effectiveStatus(item){
+  const kids = childrenOf(item.id);
+  if(kids.length === 0) return item.status;
+  const childStatuses = kids.map(effectiveStatus);
+  if(childStatuses.some(s => s === 'Blocked')) return 'Blocked';
+  if(childStatuses.some(s => s === 'At Risk')) return 'At Risk';
+  if(childStatuses.every(s => s === 'Complete')) return 'Complete';
+  return 'On Track';
+}
+function effectiveProgress(item){
+  const kids = childrenOf(item.id);
+  if(kids.length === 0) return item.progress;
+  const vals = kids.map(effectiveProgress);
+  return Math.round(vals.reduce((a,b)=>a+b,0) / vals.length);
+}
+function formatDate(dateStr){
+  if(!dateStr) return '—';
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+}
+function formatTime(iso){
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined,{month:'short',day:'numeric'}) + ' · ' + d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+}
+function isDelayed(item){ if(!item.plannedDate || !item.etc) return false; return new Date(item.etc) > new Date(item.plannedDate); }
+function escapeHtml(str){ const d = document.createElement('div'); d.textContent = str || ''; return d.innerHTML; }
+function escapeAttr(str){ return (str||'').replace(/"/g,'&quot;'); }
+function ancestorChain(id){
+  const chain = [];
+  let cur = id ? items.find(i => i.id === id) : null;
+  while(cur){ chain.unshift(cur); cur = cur.parentId ? items.find(i => i.id === cur.parentId) : null; }
+  return chain;
+}
+
+// ---- Fuzzy search ----
+function fuzzyMatch(text, query){
+  if(!query) return true;
+  text = (text||'').toLowerCase(); query = query.toLowerCase();
+  let ti = 0;
+  for(let qi = 0; qi < query.length; qi++){
+    const ch = query[qi]; let found = false;
+    while(ti < text.length){ if(text[ti] === ch){ found = true; ti++; break; } ti++; }
+    if(!found) return false;
+  }
+  return true;
+}
+function itemMatchesSearch(item, query, serials){
+  if(!query) return true;
+  return fuzzyMatch(item.title, query) || fuzzyMatch(item.owner || '', query) ||
+         fuzzyMatch(item.note || '', query) || fuzzyMatch(item.dependenciesText || '', query) ||
+         fuzzyMatch(serials[item.id] || '', query);
+}
+
+// ---- Tabs ----
+document.getElementById('tabDashBtn').onclick = () => { activeTab = 'dashboard'; renderAll(); };
+document.getElementById('tabActBtn').onclick = () => { activeTab = 'activities'; renderAll(); };
+
+function renderAll(){
+  document.getElementById('tabDashBtn').classList.toggle('active', activeTab === 'dashboard');
+  document.getElementById('tabActBtn').classList.toggle('active', activeTab === 'activities');
+  document.getElementById('dashboardView').style.display = activeTab === 'dashboard' ? 'block' : 'none';
+  document.getElementById('activitiesView').style.display = activeTab === 'activities' ? 'block' : 'none';
+
+  const onActivities = activeTab === 'activities';
+  document.getElementById('tokenBar').style.display = onActivities ? 'flex' : 'none';
+  document.getElementById('lockStatus').style.display = onActivities ? 'block' : 'none';
+
+  const status = document.getElementById('lockStatus');
+  status.innerHTML =
+    `<span class="tag ${hasTeamAccess() ? 'on' : ''}">${hasTeamAccess() ? '🔓' : '🔒'} Team: ${hasTeamAccess() ? 'unlocked' : 'locked'}</span>` +
+    `<span class="tag ${hasStructuralAccess() ? 'on' : ''}">${hasStructuralAccess() ? '🔓' : '🔒'} TL: ${hasTL || hasPM ? 'unlocked' : 'locked'}</span>` +
+    `<span class="tag ${hasPlannedAccess() ? 'on' : ''}">${hasPlannedAccess() ? '🔓' : '🔒'} PM: ${hasPM ? 'unlocked' : 'locked'}</span>`;
+
+  if(activeTab === 'dashboard') renderDashboard(); else renderActivities();
+}
+
+// ---- Dashboard ---- (unchanged from before)
+function renderDashboard(){
+  const el = document.getElementById('dashboardView');
+  const tops = topLevelItems();
+  const serials = computeSerials();
+
+  const overallAvg = tops.length ? Math.round(tops.reduce((s,l)=> s + effectiveProgress(l), 0) / tops.length) : 0;
+
+  const pvaRows = tops.map(l => {
+    const delayed = isDelayed(l);
+    return `<div class="pva-row">
+      <div class="pva-title">${serials[l.id]} ${escapeHtml(l.title)}</div>
+      <div class="pva-dates">
+        <span>Planned: <b>${formatDate(l.plannedDate)}</b></span>
+        <span>Actual: <b>${formatDate(l.etc)}</b>${delayed ? '<span class="delay-flag">DELAYED</span>' : ''}</span>
+      </div>
+    </div>`;
+  }).join('') || '<div class="empty-note">No activities yet.</div>';
+
+  const counts = {};
+  STATUS_OPTIONS.forEach(s => counts[s.v] = 0);
+  items.forEach(i => { const st = effectiveStatus(i); if(counts[st] !== undefined) counts[st]++; });
+  const total = items.length || 1;
+  let cumulative = 0;
+  const gradientParts = STATUS_OPTIONS.map(s => {
+    const pct = (counts[s.v] / total) * 100;
+    const start = cumulative; cumulative += pct;
+    return `${s.hex} ${start}% ${cumulative}%`;
+  }).join(', ');
+  const donutStyle = items.length ? `background: conic-gradient(${gradientParts});` : `background:#262e45;`;
+  const legendHtml = STATUS_OPTIONS.map(s => `
+    <div class="legend-item"><span class="legend-swatch" style="background:${s.hex}"></span><span>${s.v}</span><span class="legend-count">${counts[s.v]}</span></div>`).join('');
+
+  const ownerMap = {};
+  items.forEach(i => { const o = i.owner || 'Unassigned'; if(!ownerMap[o]) ownerMap[o] = []; ownerMap[o].push(i); });
+  const ownerEntries = Object.entries(ownerMap);
+  const maxCount = ownerEntries.length ? Math.max(...ownerEntries.map(([,t]) => t.length)) : 1;
+  const minSize = 46, maxSize = 100;
+  const bubbleHtml = ownerEntries.length ? ownerEntries.map(([owner, tasks]) => {
+    const hasDelay = tasks.some(t => isDelayed(t));
+    const size = Math.round(minSize + (tasks.length / maxCount) * (maxSize - minSize));
+    const isSelected = selectedOwner === owner;
+    return `
+      <div class="bubble-item">
+        <div class="bubble ${hasDelay ? 'bubble-red' : 'bubble-green'} ${isSelected ? 'selected' : ''}"
+             style="width:${size}px;height:${size}px;font-size:${Math.max(12, size*0.28)}px;"
+             data-owner="${escapeAttr(owner)}" title="${escapeAttr(owner)} — ${tasks.length} task(s)">${tasks.length}</div>
+        <div class="bubble-label">${escapeHtml(owner)}</div>
+        <div class="bubble-count">${hasDelay ? 'has delays' : 'on track'}</div>
+      </div>`;
+  }).join('') : '<div class="empty-note">No owners assigned yet.</div>';
+
+  let ownerDetailHtml = '';
+  if(selectedOwner && ownerMap[selectedOwner]){
+    const rows = ownerMap[selectedOwner].map(t => `
+      <div class="owner-detail-row">
+        <div class="odr-title"><span class="odr-serial">${serials[t.id] || ''}</span>${escapeHtml(t.title)}</div>
+        <span class="status-pill ${statusClass(effectiveStatus(t))}">${effectiveStatus(t)}</span>
+      </div>`).join('');
+    ownerDetailHtml = `<div class="owner-detail"><div class="owner-detail-title">${escapeHtml(selectedOwner)}'s items</div>${rows}</div>`;
+  }
+
+  const chartItems = items.filter(i => childrenOf(i.id).length === 0 && (!selectedOwner || i.owner === selectedOwner));
+  const chartHtml = buildProgressChart(chartItems);
+
+  el.innerHTML = `
+    <div class="dash-card">
+      <h2>Overall Progress</h2>
+      <div class="overall-top"><span>Across all leading activities</span><span class="overall-pct">${overallAvg}%</span></div>
+      <div class="bar-bg"><div class="bar-fill" style="width:${overallAvg}%"></div></div>
+    </div>
+    <div class="dash-card"><h2>Planned vs Actual</h2>${pvaRows}</div>
+    <div class="dash-card">
+      <h2>Status Distribution</h2>
+      <div class="pie-row"><div class="pie-donut" style="${donutStyle}"></div><div class="pie-legend">${legendHtml}</div></div>
+    </div>
+    <div class="dash-card">
+      <h2>Activity Heat Map</h2>
+      <div class="bubble-wrap" id="bubbleWrap">${bubbleHtml}</div>
+      ${ownerDetailHtml}
+    </div>
+    <div class="dash-card">
+      <h2>Progress History</h2>
+      ${selectedOwner ? `<div class="chart-filter-note">Showing items for <b>${escapeHtml(selectedOwner)}</b><button class="clear-filter" id="clearFilterBtn">Show all</button></div>` : '<div class="chart-filter-note">Showing all line items — click a bubble above to filter to one person.</div>'}
+      ${chartHtml}
+    </div>
+  `;
+
+  const bubbleWrap = document.getElementById('bubbleWrap');
+  if(bubbleWrap){
+    bubbleWrap.querySelectorAll('.bubble').forEach(b => {
+      b.onclick = () => { const owner = b.getAttribute('data-owner'); selectedOwner = selectedOwner === owner ? null : owner; renderDashboard(); };
+    });
+  }
+  const clearBtn = document.getElementById('clearFilterBtn');
+  if(clearBtn) clearBtn.onclick = () => { selectedOwner = null; renderDashboard(); };
+}
+
+function buildProgressChart(chartItems){
+  const withHistory = chartItems.filter(i => (i.progressHistory || []).length > 0);
+  if(withHistory.length === 0) return '<div class="empty-note">No progress history recorded yet — this chart fills in as edits are saved over time.</div>';
+
+  let allTimes = [];
+  withHistory.forEach(it => it.progressHistory.forEach(p => allTimes.push(new Date(p.date).getTime())));
+  let minT = Math.min(...allTimes), maxT = Math.max(...allTimes);
+  if(minT === maxT){ minT -= 86400000; maxT += 86400000; }
+
+  const W = 640, H = 220, padL = 32, padR = 10, padT = 10, padB = 10;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const xFor = t => padL + ((t - minT) / (maxT - minT)) * plotW;
+  const yFor = p => padT + (1 - p / 100) * plotH;
+
+  let grid = '';
+  [0,25,50,75,100].forEach(v => {
+    const y = yFor(v);
+    grid += `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#1e2438" stroke-width="1" />`;
+    grid += `<text x="2" y="${y+3}" font-size="9" fill="#6b7386">${v}</text>`;
+  });
+
+  const owners = [...new Set(withHistory.map(i => i.owner || 'Unassigned'))];
+  const ownerColor = {};
+  owners.forEach((o, idx) => { ownerColor[o] = CHART_PALETTE[idx % CHART_PALETTE.length]; });
+
+  let lines = '';
+  withHistory.forEach(it => {
+    const hist = it.progressHistory.slice().sort((a,b) => new Date(a.date) - new Date(b.date));
+    const color = ownerColor[it.owner || 'Unassigned'];
+    const pts = hist.map(p => `${xFor(new Date(p.date).getTime())},${yFor(p.progress)}`).join(' ');
+    lines += `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity="0.9" />`;
+    hist.forEach(p => { lines += `<circle cx="${xFor(new Date(p.date).getTime())}" cy="${yFor(p.progress)}" r="3" fill="${color}" />`; });
+  });
+
+  const legend = owners.map(o => `<div class="legend-item"><span class="legend-swatch" style="background:${ownerColor[o]}"></span><span>${escapeHtml(o)}</span></div>`).join('');
+
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">${grid}${lines}</svg><div class="pie-legend" style="margin-top:10px;">${legend}</div>`;
+}
+
+// ---- Activities: drill-down navigation ----
+function renderActivities(){
+  const el = document.getElementById('activitiesView');
+  const serials = computeSerials();
+  const query = searchQuery.trim();
+
+  const searchBar = `
+    <div class="search-wrap">
+      <input type="text" class="search-input" id="searchInput" placeholder="Search title, owner, serial, comments..." value="${escapeAttr(searchQuery)}" />
+      ${searchQuery ? `<button class="search-clear" id="searchClearBtn">Clear</button>` : ''}
+    </div>
+  `;
+
+  let bodyHtml = '';
+
+  if(query){
+    const matches = items.filter(i => itemMatchesSearch(i, query, serials));
+    bodyHtml += `<div class="search-meta">${matches.length} match(es) for "${escapeHtml(query)}"</div>`;
+    if(matches.length === 0){
+      bodyHtml += `<div class="row-list"><div class="row-empty-note">No activities match "${escapeHtml(query)}".</div></div>`;
+    } else {
+      const rows = matches.map(item => {
+        const path = ancestorChain(item.parentId).map(a => a.title).join(' › ');
+        return compactRow(item, serials, { pathLabel: path });
+      }).join('');
+      bodyHtml += `<div class="row-list">${rows}</div>`;
+    }
+  } else {
+    const current = currentParentId ? items.find(i => i.id === currentParentId) : null;
+    const chain = ancestorChain(currentParentId);
+
+    // Breadcrumb
+    let crumbHtml = `<button class="crumb-btn" id="crumbHome">All Activities</button>`;
+    chain.forEach((c, idx) => {
+      crumbHtml += `<span class="crumb-sep">›</span>`;
+      if(idx === chain.length - 1){
+        crumbHtml += `<span class="crumb-current">${escapeHtml(c.title)}</span>`;
+      } else {
+        crumbHtml += `<button class="crumb-btn" data-crumb-id="${c.id}">${escapeHtml(c.title)}</button>`;
+      }
+    });
+    bodyHtml += `<div class="breadcrumb">${crumbHtml}</div>`;
+
+    if(current){
+      bodyHtml += editingId === current.id ? detailEditCard(current) : detailViewCard(current, serials);
+    }
+
+    const kids = childrenOf(currentParentId);
+    if(kids.length === 0){
+      bodyHtml += `<div class="row-list"><div class="row-empty-note">${current ? 'No sub-items yet.' : 'No activities yet.'}</div></div>`;
+    } else {
+      bodyHtml += `<div class="row-list">${kids.map(k => compactRow(k, serials, {})).join('')}</div>`;
+    }
+
+    if(hasStructuralAccess()){
+      bodyHtml += `<button class="btn-add" id="addChildBtn">+ Add ${current ? 'Sub-item' : 'Leading Activity'}</button>`;
+    }
+
+    if(hasPlannedAccess()){
+      bodyHtml += `
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button class="btn-edit" id="exportXlsxBtn" style="flex:1;">⬇ Export to Excel</button>
+        <button class="btn-edit" id="importXlsxBtn" style="flex:1;">⬆ Import from Excel</button>
+        <input type="file" id="importFileInput" accept=".xlsx,.xls" style="display:none;" />
+      </div>
+      <div class="empty-note" style="margin-top:6px;">PM only — export activities, edit in Excel, re-import. Rows with an ID update existing items; rows without an ID create new ones (Serial sets the parent, e.g. 1.2 goes under 1). Import never deletes items.</div>`;
+    }
+  }
+
+  el.innerHTML = searchBar + bodyHtml;
+  wireActivitiesEvents();
+}
+
+function compactRow(item, serials, opts){
+  const status = effectiveStatus(item);
+  const progress = effectiveProgress(item);
+  return `
+    <div class="compact-row" data-goto-id="${item.id}">
+      <span class="row-serial">${serials[item.id] || ''}</span>
+      <span class="row-dot ${statusDot(status)}"></span>
+      <div class="row-titlewrap">
+        <div class="row-title">${escapeHtml(item.title)}</div>
+        <div class="row-owner">${opts.pathLabel ? escapeHtml(opts.pathLabel) : escapeHtml(item.owner || 'Unassigned')}</div>
+      </div>
+      <span class="row-pct">${progress}%</span>
+      <span class="row-chevron">›</span>
+    </div>
+  `;
+}
+
+function detailViewCard(item, serials){
+  const kids = childrenOf(item.id);
+  const status = effectiveStatus(item);
+  const progress = effectiveProgress(item);
+  return `
+    <div class="detail-card">
+      <div class="detail-head">
+        <div>
+          <div class="detail-title">${serials[item.id] || ''} ${escapeHtml(item.title)}</div>
+          <div class="detail-owner">${escapeHtml(item.owner || 'Unassigned')}</div>
+        </div>
+        <span class="status-pill ${statusClass(status)}">${status}</span>
+      </div>
+      <div class="progress-row">
+        <div class="bar-bg"><div class="bar-fill" style="width:${progress}%"></div></div>
+        <div class="pct-label">${progress}%</div>
+      </div>
+      ${kids.length ? '<div class="rollup-note">Status &amp; progress auto-computed from sub-items</div>' : ''}
+      <div class="date-row">
+        <div class="date-block"><span class="label">Planned</span><span class="value">${formatDate(item.plannedDate)}</span></div>
+        <div class="date-block"><span class="label">Actual / Revised</span><span class="value">${formatDate(item.etc)}${isDelayed(item) ? '<span class="delay-flag">DELAYED</span>' : ''}</span></div>
+      </div>
+      ${item.dependenciesText ? `<div class="dep-line">Dependencies: ${escapeHtml(item.dependenciesText)}</div>` : ''}
+      ${item.note ? `<div class="note">${escapeHtml(item.note)}</div>` : ''}
+      <div class="meta">Updated ${formatTime(item.updated)}</div>
+      <div class="btn-row">
+        <button class="btn-edit" id="editCurrentBtn">Edit</button>
+        ${hasStructuralAccess() ? `<button class="btn-del" id="delCurrentBtn">Delete</button>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+function detailEditCard(item){
+  const structOk = hasStructuralAccess();
+  const pmOk = hasPlannedAccess();
+  const kids = childrenOf(item.id);
+  const progressLocked = kids.length > 0;
+
+  return `
+    <div class="detail-card">
+      <div class="edit-panel">
+        <label class="edit-label pm-label">Title ${structOk ? '' : '(TL/PM only)'}</label>
+        <input type="text" id="f-title" value="${escapeAttr(item.title)}" ${structOk ? '' : 'disabled'} />
+
+        <label class="edit-label pm-label">Owner ${structOk ? '' : '(TL/PM only)'}</label>
+        <input type="text" id="f-owner" value="${escapeAttr(item.owner||'')}" ${structOk ? '' : 'disabled'} />
+
+        <label class="edit-label">Status</label>
+        <select id="f-status" ${progressLocked ? 'disabled' : ''}>
+          ${STATUS_OPTIONS.map(s => `<option value="${s.v}" ${s.v===item.status?'selected':''}>${s.v}</option>`).join('')}
+        </select>
+        ${progressLocked ? '<div class="lock-note">Auto-computed from sub-item statuses.</div>' : ''}
+
+        <label class="edit-label">Progress</label>
+        <div class="range-row">
+          <input type="range" min="0" max="100" id="f-range" value="${item.progress}" ${progressLocked ? 'disabled' : ''} />
+          <span id="f-rangeLabel" style="font-size:0.85rem;font-weight:700;width:42px;">${item.progress}%</span>
+        </div>
+        ${progressLocked ? '<div class="lock-note">Auto-computed from sub-item progress.</div>' : ''}
+
+        <label class="edit-label">Actual / Revised Completion</label>
+        <input type="date" id="f-etc" value="${escapeAttr(item.etc||'')}" />
+
+        <label class="edit-label">Dependencies</label>
+        <textarea id="f-deps" placeholder="e.g. Depends on 1.1, 2.3">${escapeHtml(item.dependenciesText||'')}</textarea>
+
+        <label class="edit-label">Comments</label>
+        <textarea id="f-note">${escapeHtml(item.note||'')}</textarea>
+
+        <div class="section-divider">Project Manager only</div>
+        <label class="edit-label pm-label">Planned Completion Date</label>
+        <input type="date" id="f-planned" value="${escapeAttr(item.plannedDate||'')}" ${pmOk ? '' : 'disabled'} />
+        ${pmOk ? '' : '<div class="lock-note">🔒 Unlock with the PM code to change this field.</div>'}
+
+        <div class="btn-row">
+          <button class="btn-save" id="saveCurrentBtn">Save</button>
+          <button class="btn-cancel" id="cancelCurrentBtn">Cancel</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function wireActivitiesEvents(){
+  const searchInput = document.getElementById('searchInput');
+  if(searchInput){
+    searchInput.oninput = (e) => { searchQuery = e.target.value; renderActivities(); };
+    if(document.activeElement !== searchInput){
+      const val = searchInput.value; searchInput.focus(); searchInput.setSelectionRange(val.length, val.length);
+    }
+  }
+  const searchClearBtn = document.getElementById('searchClearBtn');
+  if(searchClearBtn) searchClearBtn.onclick = () => { searchQuery = ''; renderActivities(); };
+
+  const crumbHome = document.getElementById('crumbHome');
+  if(crumbHome) crumbHome.onclick = () => { currentParentId = null; editingId = null; renderActivities(); };
+  document.querySelectorAll('[data-crumb-id]').forEach(b => {
+    b.onclick = () => { currentParentId = b.getAttribute('data-crumb-id'); editingId = null; renderActivities(); };
+  });
+
+  document.querySelectorAll('[data-goto-id]').forEach(row => {
+    row.onclick = () => { currentParentId = row.getAttribute('data-goto-id'); editingId = null; searchQuery = ''; renderActivities(); };
+  });
+
+  const editBtn = document.getElementById('editCurrentBtn');
+  if(editBtn) editBtn.onclick = () => { if(!hasTeamAccess()){ showToast('Unlock with a code to edit'); return; } editingId = currentParentId; renderActivities(); };
+  const delBtn = document.getElementById('delCurrentBtn');
+  if(delBtn) delBtn.onclick = () => deleteItem(currentParentId);
+  const saveBtn = document.getElementById('saveCurrentBtn');
+  if(saveBtn) saveBtn.onclick = () => saveEdit(currentParentId);
+  const cancelBtn = document.getElementById('cancelCurrentBtn');
+  if(cancelBtn) cancelBtn.onclick = () => { editingId = null; renderActivities(); };
+  const rangeInput = document.getElementById('f-range');
+  const rangeLabel = document.getElementById('f-rangeLabel');
+  if(rangeInput) rangeInput.oninput = (e) => { rangeLabel.textContent = e.target.value + '%'; };
+
+  const addChildBtn = document.getElementById('addChildBtn');
+  if(addChildBtn) addChildBtn.onclick = () => addItem(currentParentId);
+
+  const exportBtn = document.getElementById('exportXlsxBtn');
+  if(exportBtn) exportBtn.onclick = () => exportToExcel();
+  const importBtn = document.getElementById('importXlsxBtn');
+  const importInput = document.getElementById('importFileInput');
+  if(importBtn && importInput){
+    importBtn.onclick = () => importInput.click();
+    importInput.onchange = (e) => { const f = e.target.files[0]; if(f) importFromExcel(f); importInput.value = ''; };
+  }
+}
+
+async function saveEdit(id){
+  const item = items.find(i => i.id === id);
+  if(!item) return;
+  const structOk = hasStructuralAccess();
+  const pmOk = hasPlannedAccess();
+  const kids = childrenOf(id);
+  const progressLocked = kids.length > 0;
+
+  if(structOk){
+    item.title = document.getElementById('f-title').value.trim() || 'Untitled';
+    item.owner = document.getElementById('f-owner').value.trim();
+  }
+  if(pmOk){
+    item.plannedDate = document.getElementById('f-planned').value;
+  }
+  if(!progressLocked){
+    item.status = document.getElementById('f-status').value;
+    const newProgress = Number(document.getElementById('f-range').value);
+    if(newProgress !== item.progress){
+      item.progressHistory = item.progressHistory || [];
+      item.progressHistory.push({ progress: newProgress, date: new Date().toISOString() });
+    }
+    item.progress = newProgress;
+  }
+  item.etc = document.getElementById('f-etc').value;
+  item.dependenciesText = document.getElementById('f-deps').value.trim();
+  item.note = document.getElementById('f-note').value.trim();
+  item.updated = new Date().toISOString();
+
+  editingId = null;
+  await persist();
+}
+
+async function deleteItem(id){
+  const item = items.find(i => i.id === id);
+  const parentToReturnTo = item ? item.parentId : null;
+  const toDelete = new Set([id]);
+  let changed = true;
+  while(changed){
+    changed = false;
+    items.forEach(i => { if(i.parentId && toDelete.has(i.parentId) && !toDelete.has(i.id)){ toDelete.add(i.id); changed = true; } });
+  }
+  items = items.filter(i => !toDelete.has(i.id));
+  editingId = null;
+  currentParentId = parentToReturnTo;
+  await persist();
+}
+
+function addItem(parentId){
+  if(!hasStructuralAccess()){ showToast('Unlock with a TL or PM code to add items'); return; }
+  const newItem = {
+    id: uid(), parentId, title: parentId ? 'New Sub-item' : 'New Leading Activity', owner: '', status: 'On Track', progress: 0,
+    plannedDate: '', etc: '', note: '', dependenciesText: '', progressHistory: [], updated: new Date().toISOString()
+  };
+  items.push(newItem);
+  currentParentId = newItem.id;
+  editingId = newItem.id;
+  renderActivities();
+}
+
+// ---- Excel export / import (PM only) ----
+function serialSortKey(s){ return String(s||'').split('.').map(n => String(n).padStart(4,'0')).join('.'); }
+
+function exportToExcel(){
+  if(!hasPlannedAccess()){ showToast('PM access required'); return; }
+  if(typeof XLSX === 'undefined'){ showToast('Excel library not loaded — check connection'); return; }
+  const serials = computeSerials();
+  const ordered = items.slice().sort((a,b) => serialSortKey(serials[a.id]).localeCompare(serialSortKey(serials[b.id])));
+  const rows = ordered.map(i => ({
+    ID: i.id,
+    Serial: serials[i.id] || '',
+    Title: i.title,
+    Owner: i.owner || '',
+    Status: i.status,
+    Progress: i.progress,
+    PlannedDate: i.plannedDate || '',
+    ActualDate: i.etc || '',
+    Dependencies: i.dependenciesText || '',
+    Comments: i.note || ''
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows, { header: ['ID','Serial','Title','Owner','Status','Progress','PlannedDate','ActualDate','Dependencies','Comments'] });
+  ws['!cols'] = [{wch:24},{wch:8},{wch:32},{wch:18},{wch:10},{wch:9},{wch:12},{wch:12},{wch:28},{wch:36}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Activities');
+  XLSX.writeFile(wb, 'project-activities.xlsx');
+  showToast('Exported project-activities.xlsx');
+}
+
+async function importFromExcel(file){
+  if(!hasPlannedAccess()){ showToast('PM access required'); return; }
+  if(typeof XLSX === 'undefined'){ showToast('Excel library not loaded — check connection'); return; }
+  try {
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { cellDates: true });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+    if(!rows.length){ showToast('No rows found in the sheet'); return; }
+
+    const toDateStr = v => {
+      if(!v) return '';
+      if(v instanceof Date && !isNaN(v)) return v.toISOString().slice(0,10);
+      const s = String(v).trim();
+      if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+      const d = new Date(s);
+      return !isNaN(d) ? d.toISOString().slice(0,10) : '';
+    };
+    const validStatus = v => STATUS_OPTIONS.some(s => s.v === v) ? v : 'On Track';
+
+    // Seed serial->id with existing items so new rows can attach to existing parents
+    const serials = computeSerials();
+    const serialToId = {};
+    items.forEach(i => { if(serials[i.id]) serialToId[serials[i.id]] = i.id; });
+
+    // Parents before children: sort by serial depth
+    const sorted = rows.slice().sort((a,b) => String(a.Serial||'').split('.').length - String(b.Serial||'').split('.').length);
+
+    let created = 0, updated = 0, skipped = 0;
+    sorted.forEach(r => {
+      const title = String(r.Title||'').trim();
+      const serial = String(r.Serial||'').trim();
+      if(!title){ skipped++; return; }
+      const rowId = String(r.ID||'').trim();
+      const existing = rowId ? items.find(i => i.id === rowId) : null;
+
+      if(existing){
+        existing.title = title;
+        existing.owner = String(r.Owner||'').trim();
+        existing.status = validStatus(String(r.Status||'').trim());
+        const np = Math.max(0, Math.min(100, Number(r.Progress) || 0));
+        if(np !== existing.progress){
+          existing.progressHistory = existing.progressHistory || [];
+          existing.progressHistory.push({ progress: np, date: new Date().toISOString() });
+        }
+        existing.progress = np;
+        existing.plannedDate = toDateStr(r.PlannedDate);
+        existing.etc = toDateStr(r.ActualDate);
+        existing.dependenciesText = String(r.Dependencies||'').trim();
+        existing.note = String(r.Comments||'').trim();
+        existing.updated = new Date().toISOString();
+        if(serial) serialToId[serial] = existing.id;
+        updated++;
+      } else {
+        let parentId = null;
+        if(serial.includes('.')){
+          const parentSerial = serial.slice(0, serial.lastIndexOf('.'));
+          parentId = serialToId[parentSerial] || null;
+          if(!parentId){ skipped++; return; } // parent serial not found — skip rather than orphan
+        }
+        const ni = {
+          id: uid(), parentId, title,
+          owner: String(r.Owner||'').trim(),
+          status: validStatus(String(r.Status||'').trim()),
+          progress: Math.max(0, Math.min(100, Number(r.Progress) || 0)),
+          plannedDate: toDateStr(r.PlannedDate),
+          etc: toDateStr(r.ActualDate),
+          dependenciesText: String(r.Dependencies||'').trim(),
+          note: String(r.Comments||'').trim(),
+          progressHistory: [], updated: new Date().toISOString()
+        };
+        if(ni.progress > 0) ni.progressHistory.push({ progress: ni.progress, date: ni.updated });
+        items.push(ni);
+        if(serial) serialToId[serial] = ni.id;
+        created++;
+      }
+    });
+
+    await persist();
+    showToast(`Import: ${created} created, ${updated} updated${skipped ? ', ' + skipped + ' skipped' : ''}`);
+  } catch(e){
+    console.error(e);
+    showToast('Import failed — check the file format');
+  }
+}
+
+// ---- Unlock ----
+document.getElementById('unlockBtn').onclick = () => {
+  const val = document.getElementById('unlockTokenInput').value.trim();
+  if(!val){ showToast('Enter your access code first'); return; }
+  if(!CODES_CONFIGURED){ showToast('Access codes not set up in this file yet'); return; }
+
+  if(val === PM_ACCESS_CODE){
+    hasPM = true; hasTL = true; hasTeam = true;
+    document.getElementById('unlockTokenInput').value = '';
+    document.getElementById('unlockTokenInput').placeholder = 'PM access unlocked';
+    renderAll(); showToast('PM access granted');
+  } else if(val === TL_ACCESS_CODE){
+    hasTL = true; hasTeam = true;
+    document.getElementById('unlockTokenInput').value = '';
+    document.getElementById('unlockTokenInput').placeholder = 'TL access unlocked';
+    renderAll(); showToast('TL access granted');
+  } else if(val === TEAM_ACCESS_CODE){
+    hasTeam = true;
+    document.getElementById('unlockTokenInput').value = '';
+    document.getElementById('unlockTokenInput').placeholder = 'Team access unlocked';
+    renderAll(); showToast('Team access granted');
+  } else {
+    showToast('Code not recognized');
+  }
+};
+
+// ---- Init ----
+if(!GIST_CONFIGURED){
+  document.getElementById('setupBanner').style.display = 'block';
+  document.getElementById('setupBanner').textContent = '⚠️ Gist isn\'t configured yet. Fill in GIST_ID near the top of the script.';
+} else if(!CODES_CONFIGURED || !WRITE_TOKEN_CONFIGURED){
+  document.getElementById('setupBanner').style.display = 'block';
+  document.getElementById('setupBanner').textContent = '⚠️ Access codes and/or write token not set up yet. Fill in TEAM_ACCESS_CODE, TL_ACCESS_CODE, PM_ACCESS_CODE, and WRITE_TOKEN near the top of the script.';
+}
+loadItems(false);
+setInterval(() => loadItems(false), 15000);
+renderAll();
+</script>
+
+</body>
+</html>
