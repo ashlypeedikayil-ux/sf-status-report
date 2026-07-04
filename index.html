@@ -186,7 +186,7 @@
 
 <header>
   <h1>SuccessFactors HR Transformation</h1>
-  <div class="sub">Live status report · SASREF · v3.0</div>
+  <div class="sub">Live status report · SASREF · v3.2</div>
   <div class="tabs">
     <button class="tab-btn active" id="tabDashBtn">Dashboard</button>
     <button class="tab-btn" id="tabActBtn">Project Activities</button>
@@ -216,13 +216,17 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 /* =========================================================================
-   VERSION: v2.0 — deployed fresh (drill-down navigation, fuzzy search,
-   dashboard charts, 3-tier access codes, PM Excel export/import)
+   VERSION: v3.2 FINAL
+   SuccessFactors HR Transformation — Live Status Report
+   Architecture: GitHub Pages (this file) → Cloudflare Worker → GitHub Gist
    =========================================================================
-   GITHUB GIST SETUP
-   1. gist.github.com -> new gist -> filename: status-data.json
-      content: {"items":[]}
-   2. Copy the Gist ID from the URL after your username, paste into GIST_ID.
+   SETUP CHECKLIST
+   1. GitHub Gist holds the data: a gist containing a file named exactly
+      status-data.json, starting content {"items":[]}
+   2. Cloudflare Worker (sf-status-proxy) holds ALL secrets as encrypted
+      variables: GITHUB_TOKEN (gist scope), GIST_ID, TEAM_CODE, TL_CODE,
+      PM_CODE. It validates access codes server-side and performs every
+      Gist read/write.
    3. SECURITY MODEL (v3.0): all secrets now live in a Cloudflare Worker,
       NOT in this file. This page contains only the Worker's URL, which
       is safe to publish. The Worker holds the GitHub token and the three
@@ -327,11 +331,17 @@ async function loadItems(showErr){
   if(!GIST_CONFIGURED){ if(items.length === 0) items = defaultItems(); renderAll(); return; }
   try {
     const fresh = await fetchFromGist();
-    if(!editingId){ items = fresh.length ? fresh : defaultItems(); renderAll(); }
+    if(!editingId){
+      // The stored data is the truth — including an empty list.
+      // (Previously an empty list re-seeded demo items, which made
+      // deleted entries appear to "come back".)
+      items = fresh;
+      renderAll();
+    }
   } catch(e){
     console.error(e);
-    if(showErr) showToast('Could not load from Gist');
-    if(items.length === 0){ items = defaultItems(); renderAll(); }
+    if(showErr) showToast('Could not load from server');
+    renderAll();
   }
 }
 async function persist(successMsg){
