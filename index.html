@@ -186,7 +186,7 @@
 
 <header>
   <h1>SuccessFactors HR Transformation</h1>
-  <div class="sub">Live status report · SASREF · v2.5</div>
+  <div class="sub">Live status report · SASREF · v2.6</div>
   <div class="tabs">
     <button class="tab-btn active" id="tabDashBtn">Dashboard</button>
     <button class="tab-btn" id="tabActBtn">Project Activities</button>
@@ -251,7 +251,7 @@ const GIST_FILENAME = "status-data.json";
 const TEAM_ACCESS_CODE = "team123";
 const TL_ACCESS_CODE = "tl123";
 const PM_ACCESS_CODE = "pm123";
-const WRITE_TOKEN_PART1 = "Pghp_sHQSqmDR7qznM9g2";
+const WRITE_TOKEN_PART1 = "ghp_sHQSqmDR7qznM9g2";
 const WRITE_TOKEN_PART2 = "xsbQMs9zJuXiIW00HxTr";
 const WRITE_TOKEN = WRITE_TOKEN_PART1 + WRITE_TOKEN_PART2;
 
@@ -305,15 +305,25 @@ function defaultItems(){
 
 // ---- Persistence ----
 async function fetchFromGist(){
-  // Authenticated + cache-busted read: the token raises GitHub's rate limit
-  // from 60/hr to 5000/hr so 15s polling never gets blocked with 403s.
-  const headers = { 'Accept': 'application/vnd.github+json' };
-  if(WRITE_TOKEN_CONFIGURED) headers['Authorization'] = `token ${WRITE_TOKEN}`;
-  const res = await fetch(`https://api.github.com/gists/${GIST_ID}?ts=${Date.now()}`, {
-    headers, cache: 'no-store'
-  });
+  // Authenticated + cache-busted read (raises rate limit to 5000/hr).
+  // If the token is invalid, FALL BACK to an unauthenticated read so
+  // viewing still works — only saving requires a valid token.
+  const url = `https://api.github.com/gists/${GIST_ID}?ts=${Date.now()}`;
+  let res;
+  if(WRITE_TOKEN_CONFIGURED){
+    res = await fetch(url, {
+      headers: { 'Accept': 'application/vnd.github+json', 'Authorization': `token ${WRITE_TOKEN}` },
+      cache: 'no-store'
+    });
+    if(res.status === 401){
+      console.warn('Token rejected on read — falling back to unauthenticated read. Check WRITE_TOKEN_PART1/PART2.');
+      res = await fetch(url, { headers: { 'Accept': 'application/vnd.github+json' }, cache: 'no-store' });
+    }
+  } else {
+    res = await fetch(url, { headers: { 'Accept': 'application/vnd.github+json' }, cache: 'no-store' });
+  }
   if(!res.ok){
-    if(res.status === 403) throw new Error('GitHub API rate limit hit (403) — set WRITE_TOKEN to raise the limit');
+    if(res.status === 403) throw new Error('GitHub API rate limit hit (403)');
     throw new Error('Gist fetch failed: ' + res.status);
   }
   const data = await res.json();
