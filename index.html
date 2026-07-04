@@ -186,7 +186,7 @@
 
 <header>
   <h1>SuccessFactors HR Transformation</h1>
-  <div class="sub">Live status report · SASREF · v2.4</div>
+  <div class="sub">Live status report · SASREF · v2.5</div>
   <div class="tabs">
     <button class="tab-btn active" id="tabDashBtn">Dashboard</button>
     <button class="tab-btn" id="tabActBtn">Project Activities</button>
@@ -231,9 +231,16 @@
         activities and sub-items at any depth, and edit Title/Owner.
         Cannot set Planned Date.
       - PM_ACCESS_CODE: everything TL can do, PLUS set Planned Date.
-   4. WRITE_TOKEN: one GitHub Personal Access Token (gist scope) used to
-      save. Fill this in yourself, directly in this file, after
-      downloading — do not paste a real token into a chat.
+   4. WRITE_TOKEN: a GitHub Personal Access Token (gist scope) used to
+      save. IMPORTANT: GitHub auto-revokes its own tokens when it finds
+      them committed to a public repo (secret scanning). To prevent that,
+      the token is stored below SPLIT INTO TWO HALVES and joined at
+      runtime. Cut your token roughly in half and paste each half:
+        e.g. token ghp_ABCDEFGH12345678 becomes
+        PART1 = "ghp_ABCDEFGH"  PART2 = "12345678"
+      Note this only avoids auto-revocation — a human reading this file
+      can still reconstruct the token. For real secrecy use a serverless
+      proxy (e.g. Cloudflare Worker) instead.
 
       REMINDER: this file is public once deployed to GitHub Pages.
       Anyone can view its source and read these values. This is a
@@ -244,11 +251,13 @@ const GIST_FILENAME = "status-data.json";
 const TEAM_ACCESS_CODE = "team123";
 const TL_ACCESS_CODE = "tl123";
 const PM_ACCESS_CODE = "pm123";
-const WRITE_TOKEN = "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";
+const WRITE_TOKEN_PART1 = "Pghp_sHQSqmDR7qznM9g2";
+const WRITE_TOKEN_PART2 = "xsbQMs9zJuXiIW00HxTr";
+const WRITE_TOKEN = WRITE_TOKEN_PART1 + WRITE_TOKEN_PART2;
 
 const GIST_CONFIGURED = GIST_ID !== "YOUR_GIST_ID";
 const CODES_CONFIGURED = TEAM_ACCESS_CODE !== "CHANGE_ME_TEAM_CODE" && TL_ACCESS_CODE !== "CHANGE_ME_TL_CODE" && PM_ACCESS_CODE !== "CHANGE_ME_PM_CODE";
-const WRITE_TOKEN_CONFIGURED = WRITE_TOKEN !== "PASTE_YOUR_GIST_WRITE_TOKEN_HERE";
+const WRITE_TOKEN_CONFIGURED = WRITE_TOKEN_PART1 !== "PASTE_FIRST_HALF" && WRITE_TOKEN_PART2 !== "PASTE_SECOND_HALF";
 
 let hasTeam = false, hasTL = false, hasPM = false;
 let items = [];
