@@ -58,11 +58,19 @@
   .overall-pct { font-size: 1.4rem; font-weight: 800; color: #6fd3a3; }
   .bar-bg { background: #262e45; border-radius: 8px; height: 10px; overflow: hidden; }
   .bar-fill { height: 100%; background: linear-gradient(90deg, #4f8cff, #6fd3a3); border-radius: 8px; transition: width 0.4s ease; }
-  .pva-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid #1e2438; font-size: 0.82rem; }
-  .pva-row:last-child { border-bottom: none; }
-  .pva-title { color: #c3c8d6; font-weight: 600; }
-  .pva-dates { display: flex; gap: 14px; font-size: 0.74rem; color: #8b93a8; }
-  .pva-dates b { color: #c3c8d6; }
+  .pva-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; table-layout: fixed; }
+  .pva-table th {
+    text-align: left; color: #6b7386; font-size: 0.66rem; text-transform: uppercase;
+    letter-spacing: 0.04em; font-weight: 700; padding: 6px 6px 8px 0; border-bottom: 1px solid #262e45;
+  }
+  .pva-table th.col-date { width: 78px; }
+  .pva-table td { padding: 9px 6px 9px 0; border-bottom: 1px solid #1e2438; vertical-align: top; }
+  .pva-table tr:last-child td { border-bottom: none; }
+  .pva-act { color: #c3c8d6; font-weight: 600; overflow-wrap: break-word; }
+  .pva-act .serial { color: #6b7386; font-weight: 700; margin-right: 4px; }
+  .pva-date { color: #a8b0c3; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .pva-date.late { color: #f07a86; font-weight: 700; }
+  .pva-late-tag { display: block; font-size: 0.6rem; font-weight: 700; color: #f07a86; margin-top: 2px; letter-spacing: 0.03em; }
   .delay-flag { display: inline-block; margin-left: 6px; font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 8px; background: #35191c; color: #f07a86; }
   .pie-row { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
   .pie-donut { width: 140px; height: 140px; border-radius: 50%; flex-shrink: 0; }
@@ -157,6 +165,19 @@
     opacity: 0; transition: all 0.25s ease; pointer-events: none; z-index: 100; border: 1px solid #3a4361;
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Processing overlay */
+  .processing-overlay {
+    position: fixed; inset: 0; background: rgba(15,20,32,0.75); z-index: 200;
+    display: none; align-items: center; justify-content: center; flex-direction: column; gap: 14px;
+  }
+  .processing-overlay.show { display: flex; }
+  .spinner {
+    width: 38px; height: 38px; border: 3px solid #262e45; border-top-color: #4f8cff;
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .processing-msg { font-size: 0.88rem; color: #c3c8d6; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -165,7 +186,7 @@
 
 <header>
   <h1>SuccessFactors HR Transformation</h1>
-  <div class="sub">Live status report · SASREF · v2.0</div>
+  <div class="sub">Live status report · SASREF · v2.3</div>
   <div class="tabs">
     <button class="tab-btn active" id="tabDashBtn">Dashboard</button>
     <button class="tab-btn" id="tabActBtn">Project Activities</button>
@@ -186,6 +207,11 @@
 </main>
 
 <div class="toast" id="toast"></div>
+
+<div class="processing-overlay" id="processingOverlay">
+  <div class="spinner"></div>
+  <div class="processing-msg" id="processingMsg">Processing your request…</div>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
@@ -243,7 +269,12 @@ const CHART_PALETTE = ['#4f8cff','#6fd3a3','#e8c256','#f07a86','#a78bfa','#6ab3f
 
 function statusClass(status){ const f = STATUS_OPTIONS.find(s => s.v === status); return f ? f.c : 'pill-blue'; }
 function statusDot(status){ const f = STATUS_OPTIONS.find(s => s.v === status); return f ? f.dot : 'dot-blue'; }
-function showToast(msg){ toastEl.textContent = msg; toastEl.classList.add('show'); setTimeout(()=> toastEl.classList.remove('show'), 1800); }
+function showToast(msg){ toastEl.textContent = msg; toastEl.classList.add('show'); setTimeout(()=> toastEl.classList.remove('show'), 2200); }
+function showProcessing(msg){
+  document.getElementById('processingMsg').textContent = msg || 'Processing your request…';
+  document.getElementById('processingOverlay').classList.add('show');
+}
+function hideProcessing(){ document.getElementById('processingOverlay').classList.remove('show'); }
 function uid(){ return 'item_' + Date.now() + '_' + Math.random().toString(36).slice(2,7); }
 function hasTeamAccess(){ return hasTeam || hasTL || hasPM; }
 function hasStructuralAccess(){ return hasTL || hasPM; }
@@ -265,12 +296,17 @@ function defaultItems(){
 
 // ---- Persistence ----
 async function fetchFromGist(){
-  // Cache-busting: no-store + timestamp param so we always get the latest Gist state
+  // Authenticated + cache-busted read: the token raises GitHub's rate limit
+  // from 60/hr to 5000/hr so 15s polling never gets blocked with 403s.
+  const headers = { 'Accept': 'application/vnd.github+json' };
+  if(WRITE_TOKEN_CONFIGURED) headers['Authorization'] = `token ${WRITE_TOKEN}`;
   const res = await fetch(`https://api.github.com/gists/${GIST_ID}?ts=${Date.now()}`, {
-    headers: { 'Accept': 'application/vnd.github+json' },
-    cache: 'no-store'
+    headers, cache: 'no-store'
   });
-  if(!res.ok) throw new Error('Gist fetch failed: ' + res.status);
+  if(!res.ok){
+    if(res.status === 403) throw new Error('GitHub API rate limit hit (403) — set WRITE_TOKEN to raise the limit');
+    throw new Error('Gist fetch failed: ' + res.status);
+  }
   const data = await res.json();
   const file = data.files[GIST_FILENAME];
   if(!file) throw new Error('File not found in gist: ' + GIST_FILENAME);
@@ -301,6 +337,17 @@ async function saveToGist(){
       body: JSON.stringify(body)
     });
     if(!res.ok){ showToast(res.status === 401 ? 'Write token invalid or expired' : 'Save failed (' + res.status + ')'); return false; }
+    // GitHub's PATCH response contains the saved gist — use it as the
+    // authoritative state instead of a follow-up read (which can be stale
+    // due to GitHub's eventual consistency right after a write).
+    try {
+      const data = await res.json();
+      const file = data.files && data.files[GIST_FILENAME];
+      if(file && file.content){
+        const content = JSON.parse(file.content);
+        if(Array.isArray(content.items)) items = content.items;
+      }
+    } catch(e){ console.warn('Could not parse save response; keeping local state', e); }
     return true;
   } catch(e){ console.error(e); showToast('Save failed — check connection'); return false; }
 }
@@ -315,7 +362,13 @@ async function loadItems(showErr){
     if(items.length === 0){ items = defaultItems(); renderAll(); }
   }
 }
-async function persist(){ if(!GIST_CONFIGURED){ renderAll(); return; } const ok = await saveToGist(); if(ok) showToast('Saved'); renderAll(); }
+async function persist(successMsg){
+  if(!GIST_CONFIGURED){ renderAll(); return true; }
+  const ok = await saveToGist();
+  if(ok) showToast(successMsg || 'Saved ✓');
+  renderAll();
+  return ok;
+}
 
 // ---- Helpers: hierarchy, serials, rollups ----
 function topLevelItems(){ return items.filter(i => !i.parentId); }
@@ -347,6 +400,12 @@ function effectiveProgress(item){
   const vals = kids.map(effectiveProgress);
   return Math.round(vals.reduce((a,b)=>a+b,0) / vals.length);
 }
+function formatDateShort(dateStr){
+  if(!dateStr) return '—';
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString(undefined,{month:'short',day:'numeric'});
+}
+
 function formatDate(dateStr){
   if(!dateStr) return '—';
   const d = new Date(dateStr + 'T00:00:00');
@@ -416,16 +475,20 @@ function renderDashboard(){
 
   const overallAvg = tops.length ? Math.round(tops.reduce((s,l)=> s + effectiveProgress(l), 0) / tops.length) : 0;
 
-  const pvaRows = tops.map(l => {
+  const pvaBody = tops.map(l => {
     const delayed = isDelayed(l);
-    return `<div class="pva-row">
-      <div class="pva-title">${serials[l.id]} ${escapeHtml(l.title)}</div>
-      <div class="pva-dates">
-        <span>Planned: <b>${formatDate(l.plannedDate)}</b></span>
-        <span>Actual: <b>${formatDate(l.etc)}</b>${delayed ? '<span class="delay-flag">DELAYED</span>' : ''}</span>
-      </div>
-    </div>`;
-  }).join('') || '<div class="empty-note">No activities yet.</div>';
+    return `<tr>
+      <td class="pva-act"><span class="serial">${serials[l.id]}</span>${escapeHtml(l.title)}</td>
+      <td class="pva-date">${formatDateShort(l.plannedDate)}</td>
+      <td class="pva-date ${delayed ? 'late' : ''}">${formatDateShort(l.etc)}${delayed ? '<span class="pva-late-tag">DELAYED</span>' : ''}</td>
+    </tr>`;
+  }).join('');
+  const pvaRows = tops.length
+    ? `<table class="pva-table">
+        <thead><tr><th>Activity</th><th class="col-date">Planned</th><th class="col-date">Actual</th></tr></thead>
+        <tbody>${pvaBody}</tbody>
+      </table>`
+    : '<div class="empty-note">No activities yet.</div>';
 
   const counts = {};
   STATUS_OPTIONS.forEach(s => counts[s.v] = 0);
@@ -795,7 +858,8 @@ async function saveEdit(id){
   item.updated = new Date().toISOString();
 
   editingId = null;
-  await persist();
+  showProcessing('Saving your changes…');
+  try { await persist('Edit completed ✓'); } finally { hideProcessing(); }
 }
 
 async function deleteItem(id){
@@ -810,10 +874,8 @@ async function deleteItem(id){
   items = items.filter(i => !toDelete.has(i.id));
   editingId = null;
   currentParentId = parentToReturnTo;
-  // Commit the deletion to the Gist, then hard-refresh from the Gist so the
-  // view reflects exactly what was persisted (no stale/cached entries)
-  await persist();
-  await forceReload();
+  showProcessing('Deleting item…');
+  try { await persist('Delete completed ✓'); } finally { hideProcessing(); }
 }
 
 function addItem(parentId){
@@ -834,33 +896,42 @@ function serialSortKey(s){ return String(s||'').split('.').map(n => String(n).pa
 function exportToExcel(){
   if(!hasPlannedAccess()){ showToast('PM access required'); return; }
   if(typeof XLSX === 'undefined'){ showToast('Excel library not loaded — check connection'); return; }
-  const serials = computeSerials();
-  const ordered = items.slice().sort((a,b) => serialSortKey(serials[a.id]).localeCompare(serialSortKey(serials[b.id])));
-  const rows = ordered.map(i => ({
-    ID: i.id,
-    Serial: serials[i.id] || '',
-    Title: i.title,
-    Owner: i.owner || '',
-    Status: i.status,
-    Progress: i.progress,
-    PlannedDate: i.plannedDate || '',
-    ActualDate: i.etc || '',
-    Dependencies: i.dependenciesText || '',
-    Comments: i.note || ''
-  }));
-  const ws = XLSX.utils.json_to_sheet(rows, { header: ['ID','Serial','Title','Owner','Status','Progress','PlannedDate','ActualDate','Dependencies','Comments'] });
-  ws['!cols'] = [{wch:24},{wch:8},{wch:32},{wch:18},{wch:10},{wch:9},{wch:12},{wch:12},{wch:28},{wch:36}];
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Activities');
-  XLSX.writeFile(wb, 'project-activities.xlsx');
-  showToast('Exported project-activities.xlsx');
-  // Refresh from the Gist right after export so the view matches the latest saved state
-  forceReload();
+  showProcessing('Preparing Excel export…');
+  setTimeout(() => {
+    try {
+      const serials = computeSerials();
+      const ordered = items.slice().sort((a,b) => serialSortKey(serials[a.id]).localeCompare(serialSortKey(serials[b.id])));
+      const rows = ordered.map(i => ({
+        ID: i.id,
+        Serial: serials[i.id] || '',
+        Title: i.title,
+        Owner: i.owner || '',
+        Status: i.status,
+        Progress: i.progress,
+        PlannedDate: i.plannedDate || '',
+        ActualDate: i.etc || '',
+        Dependencies: i.dependenciesText || '',
+        Comments: i.note || ''
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows, { header: ['ID','Serial','Title','Owner','Status','Progress','PlannedDate','ActualDate','Dependencies','Comments'] });
+      ws['!cols'] = [{wch:24},{wch:8},{wch:32},{wch:18},{wch:10},{wch:9},{wch:12},{wch:12},{wch:28},{wch:36}];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Activities');
+      XLSX.writeFile(wb, 'project-activities.xlsx');
+      showToast('Export completed ✓ — project-activities.xlsx downloaded');
+    } catch(e){
+      console.error(e);
+      showToast('Export failed');
+    } finally {
+      hideProcessing();
+    }
+  }, 60);
 }
 
 async function importFromExcel(file){
   if(!hasPlannedAccess()){ showToast('PM access required'); return; }
   if(typeof XLSX === 'undefined'){ showToast('Excel library not loaded — check connection'); return; }
+  showProcessing('Importing from Excel…');
   try {
     const buf = await file.arrayBuffer();
     const wb = XLSX.read(buf, { cellDates: true });
@@ -936,13 +1007,12 @@ async function importFromExcel(file){
       }
     });
 
-    await persist();
-    showToast(`Import: ${created} created, ${updated} updated${skipped ? ', ' + skipped + ' skipped' : ''}`);
-    // Full refresh from the Gist so the view reflects exactly what was saved
-    await forceReload();
+    await persist(`Import completed ✓ — ${created} created, ${updated} updated${skipped ? ', ' + skipped + ' skipped' : ''}`);
   } catch(e){
     console.error(e);
     showToast('Import failed — check the file format');
+  } finally {
+    hideProcessing();
   }
 }
 
