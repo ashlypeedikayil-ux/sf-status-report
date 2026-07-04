@@ -265,13 +265,31 @@ function defaultItems(){
 
 // ---- Persistence ----
 async function fetchFromGist(){
-  const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, { headers: { 'Accept': 'application/vnd.github+json' } });
+  // Cache-busting: no-store + timestamp param so we always get the latest Gist state
+  const res = await fetch(`https://api.github.com/gists/${GIST_ID}?ts=${Date.now()}`, {
+    headers: { 'Accept': 'application/vnd.github+json' },
+    cache: 'no-store'
+  });
   if(!res.ok) throw new Error('Gist fetch failed: ' + res.status);
   const data = await res.json();
   const file = data.files[GIST_FILENAME];
   if(!file) throw new Error('File not found in gist: ' + GIST_FILENAME);
   const content = file.content ? JSON.parse(file.content) : { items: [] };
   return content.items || [];
+}
+
+async function forceReload(){
+  if(!GIST_CONFIGURED){ renderAll(); return; }
+  editingId = null;
+  try {
+    const fresh = await fetchFromGist();
+    items = fresh.length ? fresh : [];
+    renderAll();
+  } catch(e){
+    console.error(e);
+    showToast('Reload failed — showing local data');
+    renderAll();
+  }
 }
 async function saveToGist(){
   if(!WRITE_TOKEN_CONFIGURED){ showToast('Write token not set up in this file yet'); return false; }
@@ -792,7 +810,10 @@ async function deleteItem(id){
   items = items.filter(i => !toDelete.has(i.id));
   editingId = null;
   currentParentId = parentToReturnTo;
+  // Commit the deletion to the Gist, then hard-refresh from the Gist so the
+  // view reflects exactly what was persisted (no stale/cached entries)
   await persist();
+  await forceReload();
 }
 
 function addItem(parentId){
@@ -833,6 +854,8 @@ function exportToExcel(){
   XLSX.utils.book_append_sheet(wb, ws, 'Activities');
   XLSX.writeFile(wb, 'project-activities.xlsx');
   showToast('Exported project-activities.xlsx');
+  // Refresh from the Gist right after export so the view matches the latest saved state
+  forceReload();
 }
 
 async function importFromExcel(file){
@@ -915,6 +938,8 @@ async function importFromExcel(file){
 
     await persist();
     showToast(`Import: ${created} created, ${updated} updated${skipped ? ', ' + skipped + ' skipped' : ''}`);
+    // Full refresh from the Gist so the view reflects exactly what was saved
+    await forceReload();
   } catch(e){
     console.error(e);
     showToast('Import failed — check the file format');
@@ -952,8 +977,11 @@ if(!GIST_CONFIGURED){
   document.getElementById('setupBanner').style.display = 'block';
   document.getElementById('setupBanner').textContent = '⚠️ Gist isn\'t configured yet. Fill in GIST_ID near the top of the script.';
 } else if(!CODES_CONFIGURED || !WRITE_TOKEN_CONFIGURED){
+  const missing = [];
+  if(!CODES_CONFIGURED) missing.push('access codes (TEAM_ACCESS_CODE / TL_ACCESS_CODE / PM_ACCESS_CODE)');
+  if(!WRITE_TOKEN_CONFIGURED) missing.push('WRITE_TOKEN (GitHub token with gist scope — edits cannot be saved until this is set)');
   document.getElementById('setupBanner').style.display = 'block';
-  document.getElementById('setupBanner').textContent = '⚠️ Access codes and/or write token not set up yet. Fill in TEAM_ACCESS_CODE, TL_ACCESS_CODE, PM_ACCESS_CODE, and WRITE_TOKEN near the top of the script.';
+  document.getElementById('setupBanner').textContent = '⚠️ Setup incomplete — still needed: ' + missing.join(' and ') + '. Edit the values near the top of the script in this file.';
 }
 loadItems(false);
 setInterval(() => loadItems(false), 15000);
