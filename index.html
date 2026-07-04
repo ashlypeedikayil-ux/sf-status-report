@@ -186,7 +186,7 @@
 
 <header>
   <h1>SuccessFactors HR Transformation</h1>
-  <div class="sub">Live status report · SASREF · v2.3</div>
+  <div class="sub">Live status report · SASREF · v2.4</div>
   <div class="tabs">
     <button class="tab-btn active" id="tabDashBtn">Dashboard</button>
     <button class="tab-btn" id="tabActBtn">Project Activities</button>
@@ -244,7 +244,7 @@ const GIST_FILENAME = "status-data.json";
 const TEAM_ACCESS_CODE = "team123";
 const TL_ACCESS_CODE = "tl123";
 const PM_ACCESS_CODE = "pm123";
-const WRITE_TOKEN = "P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";
+const WRITE_TOKEN = "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";
 
 const GIST_CONFIGURED = GIST_ID !== "YOUR_GIST_ID";
 const CODES_CONFIGURED = TEAM_ACCESS_CODE !== "CHANGE_ME_TEAM_CODE" && TL_ACCESS_CODE !== "CHANGE_ME_TL_CODE" && PM_ACCESS_CODE !== "CHANGE_ME_PM_CODE";
@@ -364,8 +364,22 @@ async function loadItems(showErr){
 }
 async function persist(successMsg){
   if(!GIST_CONFIGURED){ renderAll(); return true; }
+  if(!WRITE_TOKEN_CONFIGURED){
+    // No write token — the change CANNOT be saved. Restore true state
+    // immediately instead of showing a phantom change that later reverts.
+    showToast('⚠ NOT SAVED — write token missing in this file');
+    await forceReload();
+    return false;
+  }
   const ok = await saveToGist();
-  if(ok) showToast(successMsg || 'Saved ✓');
+  if(ok){
+    showToast(successMsg || 'Saved ✓');
+  } else {
+    // Save rejected (bad token / network / wrong gist) — reload the real
+    // state from the Gist so the screen never shows unsaved data.
+    showToast('⚠ NOT SAVED — reverting to last saved state');
+    await forceReload();
+  }
   renderAll();
   return ok;
 }
@@ -804,7 +818,11 @@ function wireActivitiesEvents(){
   });
 
   const editBtn = document.getElementById('editCurrentBtn');
-  if(editBtn) editBtn.onclick = () => { if(!hasTeamAccess()){ showToast('Unlock with a code to edit'); return; } editingId = currentParentId; renderActivities(); };
+  if(editBtn) editBtn.onclick = () => {
+    if(!hasTeamAccess()){ showToast('Unlock with a code to edit'); return; }
+    if(GIST_CONFIGURED && !WRITE_TOKEN_CONFIGURED){ showToast('⚠ Editing disabled — WRITE_TOKEN not set in this file'); return; }
+    editingId = currentParentId; renderActivities();
+  };
   const delBtn = document.getElementById('delCurrentBtn');
   if(delBtn) delBtn.onclick = () => deleteItem(currentParentId);
   const saveBtn = document.getElementById('saveCurrentBtn');
