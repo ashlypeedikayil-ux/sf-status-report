@@ -186,7 +186,7 @@
 
 <header>
   <h1>SuccessFactors HR Transformation</h1>
-  <div class="sub">Live status report · SASREF · v2.6</div>
+  <div class="sub">Live status report · SASREF · v3.0</div>
   <div class="tabs">
     <button class="tab-btn active" id="tabDashBtn">Dashboard</button>
     <button class="tab-btn" id="tabActBtn">Project Activities</button>
@@ -223,41 +223,21 @@
    1. gist.github.com -> new gist -> filename: status-data.json
       content: {"items":[]}
    2. Copy the Gist ID from the URL after your username, paste into GIST_ID.
-   3. ACCESS CODES — only required on the Project Activities tab. The
-      Dashboard is view-only for everyone, no code needed.
-      - TEAM_ACCESS_CODE: edit Status, Progress (leaf items), Actual/Revised
-        date, Comments, Dependencies (free text) on existing items.
-      - TL_ACCESS_CODE: everything Team can do, PLUS create/delete leading
-        activities and sub-items at any depth, and edit Title/Owner.
-        Cannot set Planned Date.
-      - PM_ACCESS_CODE: everything TL can do, PLUS set Planned Date.
-   4. WRITE_TOKEN: a GitHub Personal Access Token (gist scope) used to
-      save. IMPORTANT: GitHub auto-revokes its own tokens when it finds
-      them committed to a public repo (secret scanning). To prevent that,
-      the token is stored below SPLIT INTO TWO HALVES and joined at
-      runtime. Cut your token roughly in half and paste each half:
-        e.g. token ghp_ABCDEFGH12345678 becomes
-        PART1 = "ghp_ABCDEFGH"  PART2 = "12345678"
-      Note this only avoids auto-revocation — a human reading this file
-      can still reconstruct the token. For real secrecy use a serverless
-      proxy (e.g. Cloudflare Worker) instead.
-
-      REMINDER: this file is public once deployed to GitHub Pages.
-      Anyone can view its source and read these values. This is a
-      UI-level guardrail, not real per-field security.
+   3. SECURITY MODEL (v3.0): all secrets now live in a Cloudflare Worker,
+      NOT in this file. This page contains only the Worker's URL, which
+      is safe to publish. The Worker holds the GitHub token and the three
+      access codes as encrypted environment variables, validates codes
+      server-side, and performs all Gist reads/writes itself.
+      - Nothing in this file can be scanned/revoked by GitHub.
+      - View-source reveals no token and no access codes.
    ========================================================================= */
-const GIST_ID = "97474ad61c5d5923b0d849528e4241e9";
-const GIST_FILENAME = "status-data.json";
-const TEAM_ACCESS_CODE = "team123";
-const TL_ACCESS_CODE = "tl123";
-const PM_ACCESS_CODE = "pm123";
-const WRITE_TOKEN_PART1 = "ghp_sHQSqmDR7qznM9g2";
-const WRITE_TOKEN_PART2 = "xsbQMs9zJuXiIW00HxTr";
-const WRITE_TOKEN = WRITE_TOKEN_PART1 + WRITE_TOKEN_PART2;
-
-const GIST_CONFIGURED = GIST_ID !== "YOUR_GIST_ID";
-const CODES_CONFIGURED = TEAM_ACCESS_CODE !== "CHANGE_ME_TEAM_CODE" && TL_ACCESS_CODE !== "CHANGE_ME_TL_CODE" && PM_ACCESS_CODE !== "CHANGE_ME_PM_CODE";
-const WRITE_TOKEN_CONFIGURED = WRITE_TOKEN_PART1 !== "PASTE_FIRST_HALF" && WRITE_TOKEN_PART2 !== "PASTE_SECOND_HALF";
+const WORKER_URL = "https://sf-status-proxy.ashlypeedikayil.workers.dev"; // e.g. https://sf-status-proxy.yourname.workers.dev
+const WORKER_CONFIGURED = WORKER_URL !== "PASTE_YOUR_WORKER_URL_HERE";
+// Aliases so the rest of the code works unchanged:
+const GIST_CONFIGURED = WORKER_CONFIGURED;
+const CODES_CONFIGURED = true;
+const WRITE_TOKEN_CONFIGURED = WORKER_CONFIGURED;
+let unlockCode = null; // validated access code, held in memory for saves
 
 let hasTeam = false, hasTL = false, hasPM = false;
 let items = [];
@@ -305,32 +285,11 @@ function defaultItems(){
 
 // ---- Persistence ----
 async function fetchFromGist(){
-  // Authenticated + cache-busted read (raises rate limit to 5000/hr).
-  // If the token is invalid, FALL BACK to an unauthenticated read so
-  // viewing still works — only saving requires a valid token.
-  const url = `https://api.github.com/gists/${GIST_ID}?ts=${Date.now()}`;
-  let res;
-  if(WRITE_TOKEN_CONFIGURED){
-    res = await fetch(url, {
-      headers: { 'Accept': 'application/vnd.github+json', 'Authorization': `token ${WRITE_TOKEN}` },
-      cache: 'no-store'
-    });
-    if(res.status === 401){
-      console.warn('Token rejected on read — falling back to unauthenticated read. Check WRITE_TOKEN_PART1/PART2.');
-      res = await fetch(url, { headers: { 'Accept': 'application/vnd.github+json' }, cache: 'no-store' });
-    }
-  } else {
-    res = await fetch(url, { headers: { 'Accept': 'application/vnd.github+json' }, cache: 'no-store' });
-  }
-  if(!res.ok){
-    if(res.status === 403) throw new Error('GitHub API rate limit hit (403)');
-    throw new Error('Gist fetch failed: ' + res.status);
-  }
+  // All reads go through the Worker — it holds the token server-side.
+  const res = await fetch(`${WORKER_URL}/load?ts=${Date.now()}`, { cache: 'no-store' });
+  if(!res.ok) throw new Error('Load failed: ' + res.status);
   const data = await res.json();
-  const file = data.files[GIST_FILENAME];
-  if(!file) throw new Error('File not found in gist: ' + GIST_FILENAME);
-  const content = file.content ? JSON.parse(file.content) : { items: [] };
-  return content.items || [];
+  return data.items || [];
 }
 
 async function forceReload(){
@@ -347,26 +306,20 @@ async function forceReload(){
   }
 }
 async function saveToGist(){
-  if(!WRITE_TOKEN_CONFIGURED){ showToast('Write token not set up in this file yet'); return false; }
+  if(!unlockCode){ showToast('Unlock with your access code first'); return false; }
   try {
-    const body = { files: { [GIST_FILENAME]: { content: JSON.stringify({ items }, null, 2) } } };
-    const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
-      method: 'PATCH',
-      headers: { 'Accept': 'application/vnd.github+json', 'Authorization': `token ${WRITE_TOKEN}` },
-      body: JSON.stringify(body)
+    const res = await fetch(`${WORKER_URL}/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: unlockCode, items })
     });
-    if(!res.ok){ showToast(res.status === 401 ? 'Write token invalid or expired' : 'Save failed (' + res.status + ')'); return false; }
-    // GitHub's PATCH response contains the saved gist — use it as the
-    // authoritative state instead of a follow-up read (which can be stale
-    // due to GitHub's eventual consistency right after a write).
-    try {
-      const data = await res.json();
-      const file = data.files && data.files[GIST_FILENAME];
-      if(file && file.content){
-        const content = JSON.parse(file.content);
-        if(Array.isArray(content.items)) items = content.items;
-      }
-    } catch(e){ console.warn('Could not parse save response; keeping local state', e); }
+    if(!res.ok){
+      showToast(res.status === 401 ? 'Access code rejected by server' : 'Save failed (' + res.status + ')');
+      return false;
+    }
+    // Worker returns the saved state — use it as the authoritative truth
+    const data = await res.json();
+    if(Array.isArray(data.items)) items = data.items;
     return true;
   } catch(e){ console.error(e); showToast('Save failed — check connection'); return false; }
 }
@@ -384,9 +337,7 @@ async function loadItems(showErr){
 async function persist(successMsg){
   if(!GIST_CONFIGURED){ renderAll(); return true; }
   if(!WRITE_TOKEN_CONFIGURED){
-    // No write token — the change CANNOT be saved. Restore true state
-    // immediately instead of showing a phantom change that later reverts.
-    showToast('⚠ NOT SAVED — write token missing in this file');
+    showToast('⚠ NOT SAVED — Worker URL missing in this file');
     await forceReload();
     return false;
   }
@@ -839,7 +790,7 @@ function wireActivitiesEvents(){
   const editBtn = document.getElementById('editCurrentBtn');
   if(editBtn) editBtn.onclick = () => {
     if(!hasTeamAccess()){ showToast('Unlock with a code to edit'); return; }
-    if(GIST_CONFIGURED && !WRITE_TOKEN_CONFIGURED){ showToast('⚠ Editing disabled — WRITE_TOKEN not set in this file'); return; }
+    if(GIST_CONFIGURED && !WRITE_TOKEN_CONFIGURED){ showToast('⚠ Editing disabled — Worker URL not set in this file'); return; }
     editingId = currentParentId; renderActivities();
   };
   const delBtn = document.getElementById('delCurrentBtn');
@@ -1054,41 +1005,41 @@ async function importFromExcel(file){
 }
 
 // ---- Unlock ----
-document.getElementById('unlockBtn').onclick = () => {
+document.getElementById('unlockBtn').onclick = async () => {
   const val = document.getElementById('unlockTokenInput').value.trim();
   if(!val){ showToast('Enter your access code first'); return; }
-  if(!CODES_CONFIGURED){ showToast('Access codes not set up in this file yet'); return; }
+  if(!WORKER_CONFIGURED){ showToast('Worker URL not set up in this file yet'); return; }
 
-  if(val === PM_ACCESS_CODE){
-    hasPM = true; hasTL = true; hasTeam = true;
-    document.getElementById('unlockTokenInput').value = '';
-    document.getElementById('unlockTokenInput').placeholder = 'PM access unlocked';
-    renderAll(); showToast('PM access granted');
-  } else if(val === TL_ACCESS_CODE){
-    hasTL = true; hasTeam = true;
-    document.getElementById('unlockTokenInput').value = '';
-    document.getElementById('unlockTokenInput').placeholder = 'TL access unlocked';
-    renderAll(); showToast('TL access granted');
-  } else if(val === TEAM_ACCESS_CODE){
+  const btn = document.getElementById('unlockBtn');
+  btn.disabled = true; btn.textContent = 'Checking…';
+  try {
+    const res = await fetch(`${WORKER_URL}/auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: val })
+    });
+    if(!res.ok){ showToast('Code not recognized'); return; }
+    const data = await res.json();
+    unlockCode = val;
+    hasPM = data.role === 'pm';
+    hasTL = hasPM || data.role === 'tl';
     hasTeam = true;
     document.getElementById('unlockTokenInput').value = '';
-    document.getElementById('unlockTokenInput').placeholder = 'Team access unlocked';
-    renderAll(); showToast('Team access granted');
-  } else {
-    showToast('Code not recognized');
+    document.getElementById('unlockTokenInput').placeholder = (data.role || 'team').toUpperCase() + ' access unlocked';
+    renderAll();
+    showToast((data.role || 'team').toUpperCase() + ' access granted');
+  } catch(e){
+    console.error(e);
+    showToast('Could not reach the server — check connection');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Unlock';
   }
 };
 
 // ---- Init ----
-if(!GIST_CONFIGURED){
+if(!WORKER_CONFIGURED){
   document.getElementById('setupBanner').style.display = 'block';
-  document.getElementById('setupBanner').textContent = '⚠️ Gist isn\'t configured yet. Fill in GIST_ID near the top of the script.';
-} else if(!CODES_CONFIGURED || !WRITE_TOKEN_CONFIGURED){
-  const missing = [];
-  if(!CODES_CONFIGURED) missing.push('access codes (TEAM_ACCESS_CODE / TL_ACCESS_CODE / PM_ACCESS_CODE)');
-  if(!WRITE_TOKEN_CONFIGURED) missing.push('WRITE_TOKEN (GitHub token with gist scope — edits cannot be saved until this is set)');
-  document.getElementById('setupBanner').style.display = 'block';
-  document.getElementById('setupBanner').textContent = '⚠️ Setup incomplete — still needed: ' + missing.join(' and ') + '. Edit the values near the top of the script in this file.';
+  document.getElementById('setupBanner').textContent = '⚠️ Setup incomplete — paste your Cloudflare Worker URL into WORKER_URL near the top of the script.';
 }
 loadItems(false);
 setInterval(() => loadItems(false), 15000);
