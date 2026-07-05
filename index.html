@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
-<title>SuccessFactors HR Transformation — Status Report</title>
+<title>SASREF SAP Business Transformation Programs</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -23,6 +23,23 @@
     cursor: pointer; font-family: inherit;
   }
   .tab-btn.active { color: #e6e9f0; border-bottom: 2px solid #4f8cff; }
+
+  /* Project landing page */
+  .proj-back {
+    background: none; border: none; color: #9db3e0; font-weight: 700; font-size: 0.78rem;
+    padding: 0 0 8px 0; cursor: pointer; display: block;
+  }
+  .proj-card {
+    background: #171d30; border: 1px solid #262e45; border-radius: 14px;
+    padding: 18px 16px; margin-bottom: 14px; cursor: pointer; transition: border-color 0.15s;
+  }
+  .proj-card:hover { border-color: #4f8cff; }
+  .proj-card:active { background: #1a2033; }
+  .proj-name { font-size: 1.05rem; font-weight: 700; margin-bottom: 6px; }
+  .proj-stats { display: flex; gap: 16px; font-size: 0.74rem; color: #8b93a8; margin-bottom: 10px; flex-wrap: wrap; }
+  .proj-stats b { color: #c3c8d6; }
+  .proj-stats .late { color: #f07a86; font-weight: 700; }
+  .landing-title { font-size: 0.8rem; color: #8b93a8; margin: 4px 0 14px; }
   .token-bar { display: flex; gap: 8px; align-items: center; padding: 10px 16px; background: #171d30; border-bottom: 1px solid #262e45; flex-wrap: wrap; }
   .token-bar input {
     flex: 1; min-width: 140px; background: #0f1420; border: 1px solid #2f3752; color: #e6e9f0;
@@ -35,9 +52,50 @@
   .lock-status { font-size: 0.7rem; color: #8b93a8; padding: 0 16px 8px; }
   .lock-status .tag { font-weight: 700; margin-right: 10px; }
   .lock-status .on { color: #6fd3a3; }
+
+  /* Auth panel (login / register) */
+  .auth-panel { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+  .auth-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .auth-row select, .auth-row input {
+    flex: 1; min-width: 130px; background: #0f1420; border: 1px solid #2f3752; color: #e6e9f0;
+    border-radius: 8px; padding: 8px 10px; font-size: 0.8rem; font-family: inherit;
+  }
+  .btn-linklike { background: none; color: #9db3e0; padding: 8px 4px; font-size: 0.74rem; }
+  .master-row { opacity: 0.75; }
+  .auth-hint { font-size: 0.68rem; color: #6b7386; }
+  .login-card {
+    background: #171d30; border: 1px solid #262e45; border-radius: 16px;
+    padding: 20px 18px; max-width: 520px; margin: 8vh auto 0;
+  }
+  .login-heading { font-size: 1rem; font-weight: 700; margin-bottom: 14px; }
+
+  /* Admin console */
+  .admin-card { background: #1c1a2e; border: 1px solid #3a3260; border-radius: 14px; padding: 12px; margin-top: 14px; }
+  .admin-add { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .admin-add input, .admin-add select {
+    flex: 1; min-width: 130px; background: #0f1420; border: 1px solid #2f3752; color: #e6e9f0;
+    border-radius: 8px; padding: 8px 10px; font-size: 0.8rem; font-family: inherit;
+  }
+  .admin-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 2px; border-bottom: 1px solid #2a2545; flex-wrap: wrap; }
+  .admin-row:last-of-type { border-bottom: none; }
+  .admin-user { font-size: 0.82rem; color: #e6e9f0; }
+  .admin-role { font-size: 0.64rem; color: #e0b567; font-weight: 700; margin-left: 6px; }
+  .admin-state .ok { color: #6fd3a3; font-size: 0.74rem; font-weight: 700; }
+  .admin-state .pend { color: #e8c256; font-size: 0.74rem; font-weight: 700; }
+  .invite-chip { background: #0f1420; border: 1px dashed #4f8cff; color: #9db3e0; font-family: monospace; font-size: 0.78rem; padding: 2px 8px; border-radius: 6px; margin-left: 6px; }
+  .admin-actions { display: flex; gap: 6px; }
   .setup-banner { background: #35191c; color: #f6b8bf; font-size: 0.78rem; padding: 12px 16px; line-height: 1.5; }
   .setup-banner code { background: #1c0f10; padding: 1px 5px; border-radius: 4px; }
   main { padding: 16px; max-width: 720px; margin: 0 auto; }
+
+  /* Desktop: stretch wider and pack rows tighter so more line items are visible */
+  @media (min-width: 1024px){
+    main { max-width: 1180px; }
+    .compact-row { padding: 8px 14px; }
+    .row-title { font-size: 0.88rem; }
+    .search-wrap { max-width: 640px; }
+    .breadcrumb { font-size: 0.8rem; }
+  }
 
   /* Search */
   .search-wrap { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
@@ -85,6 +143,8 @@
   .bubble.selected { border-color: #e6e9f0; box-shadow: 0 0 0 3px rgba(230,233,240,0.15); }
   .bubble-green { background: #6fd3a3; }
   .bubble-red { background: #f07a86; }
+  .bubble-risk { animation: riskPulse 1.8s ease-in-out infinite; }
+  @keyframes riskPulse { 0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(240,122,134,0.5); } 50% { opacity: 0.55; box-shadow: 0 0 0 8px rgba(240,122,134,0); } }
   .bubble-label { font-size: 0.72rem; color: #a8b0c3; margin-top: 6px; max-width: 90px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .bubble-count { font-size: 0.68rem; color: #6b7386; }
   .owner-detail { margin-top: 16px; border-top: 1px solid #262e45; padding-top: 12px; }
@@ -185,24 +245,46 @@
 <div class="setup-banner" id="setupBanner" style="display:none;"></div>
 
 <header>
-  <h1>SuccessFactors HR Transformation</h1>
-  <div class="sub">Live status report · SASREF · v3.2</div>
-  <div class="tabs">
+  <button class="proj-back" id="logoutBtn" style="display:none; float:right;">Logout</button>
+  <button class="proj-back" id="projBackBtn" style="display:none;">‹ All Projects</button>
+  <h1 id="projTitle">SASREF SAP Business Transformation Programs</h1>
+  <div class="sub">Live status report · SASREF · v4.3</div>
+  <div class="tabs" id="tabsBar" style="display:none;">
     <button class="tab-btn active" id="tabDashBtn">Dashboard</button>
     <button class="tab-btn" id="tabActBtn">Project Activities</button>
   </div>
 </header>
 
-<div class="token-bar" id="tokenBar" style="display:none;">
-  <input type="password" id="unlockTokenInput" placeholder="Enter your access code" />
-  <button class="btn-unlock" id="unlockBtn">Unlock</button>
-</div>
+<div class="token-bar" id="tokenBar" style="display:none;"></div>
 <div class="lock-status" id="lockStatus">
   <span class="tag">🔒 Team: locked</span><span class="tag">🔒 TL: locked</span><span class="tag">🔒 PM: locked</span>
 </div>
 
 <main>
-  <div id="dashboardView"></div>
+  <div id="loginView">
+    <div class="login-card">
+      <div class="login-heading">Sign in to continue</div>
+      <div class="auth-panel">
+        <div class="auth-row" id="loginRow">
+          <input type="text" id="loginName" placeholder="Username" />
+          <input type="password" id="loginCode" placeholder="Passcode" />
+          <button class="btn-unlock" id="loginBtn">Login</button>
+          <button class="btn-linklike" id="showRegisterBtn">First time? Register</button>
+        </div>
+        <div class="auth-row" id="registerRow" style="display:none;">
+          <input type="text" id="regName" placeholder="Your name (as onboarded by PM)" />
+          <input type="text" id="regInvite" placeholder="Invite code from PM" />
+          <input type="password" id="regCode" placeholder="Create passcode" />
+          <input type="password" id="regCode2" placeholder="Confirm passcode" />
+          <button class="btn-unlock" id="registerBtn">Activate</button>
+          <button class="btn-linklike" id="showLoginBtn">Back to login</button>
+        </div>
+      </div>
+      <div class="auth-hint" style="margin-top:12px;">First time here? Tap "Register", type your name exactly as the PM onboarded it, enter the invite code shared with you, and create your passcode.</div>
+    </div>
+  </div>
+  <div id="landingView" style="display:none;"></div>
+  <div id="dashboardView" style="display:none;"></div>
   <div id="activitiesView" style="display:none;"></div>
 </main>
 
@@ -241,7 +323,18 @@ const WORKER_CONFIGURED = WORKER_URL !== "PASTE_YOUR_WORKER_URL_HERE";
 const GIST_CONFIGURED = WORKER_CONFIGURED;
 const CODES_CONFIGURED = true;
 const WRITE_TOKEN_CONFIGURED = WORKER_CONFIGURED;
-let unlockCode = null; // validated access code, held in memory for saves
+let sessionAuth = null;      // {name, code} for registered users OR {code} for master codes — memory only
+let currentUserName = null;  // display name of the logged-in person (null for master-code sessions)
+let adminUsers = null;       // PM-only detailed list incl. invite codes
+let adminOpen = false;
+let isAuthenticated = false; // login gate — nothing renders until signed in
+
+// ---- Projects ----
+const PROJECTS = [
+  { id: 'sfhr', name: 'SuccessFactors HR Transformation' },
+  { id: 's4hana', name: 'S4HANA Business Transformation' }
+];
+let currentProject = null; // null = landing page; items without a project field belong to PROJECTS[0]
 
 let hasTeam = false, hasTL = false, hasPM = false;
 let items = [];
@@ -310,15 +403,15 @@ async function forceReload(){
   }
 }
 async function saveToGist(){
-  if(!unlockCode){ showToast('Unlock with your access code first'); return false; }
+  if(!sessionAuth){ showToast('Login or unlock with a code first'); return false; }
   try {
     const res = await fetch(`${WORKER_URL}/save`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: unlockCode, items })
+      body: JSON.stringify({ auth: sessionAuth, items })
     });
     if(!res.ok){
-      showToast(res.status === 401 ? 'Access code rejected by server' : 'Save failed (' + res.status + ')');
+      showToast(res.status === 401 ? 'Credentials rejected by server' : 'Save failed (' + res.status + ')');
       return false;
     }
     // Worker returns the saved state — use it as the authoritative truth
@@ -364,9 +457,11 @@ async function persist(successMsg){
   return ok;
 }
 
-// ---- Helpers: hierarchy, serials, rollups ----
-function topLevelItems(){ return items.filter(i => !i.parentId); }
-function childrenOf(id){ return items.filter(i => i.parentId === id); }
+// ---- Helpers: projects, recursive hierarchy, serials, rollups ----
+function itemsFor(pid){ return items.filter(i => (i.project || PROJECTS[0].id) === pid); }
+function projectItems(){ return currentProject ? itemsFor(currentProject) : []; }
+function topLevelItems(){ return projectItems().filter(i => !i.parentId); }
+function childrenOf(id){ return projectItems().filter(i => i.parentId === id); }
 function computeSerials(){
   const map = {};
   function walk(parentId, prefix){
@@ -434,6 +529,7 @@ function fuzzyMatch(text, query){
 function itemMatchesSearch(item, query, serials){
   if(!query) return true;
   return fuzzyMatch(item.title, query) || fuzzyMatch(item.owner || '', query) ||
+         fuzzyMatch(item.department || '', query) ||
          fuzzyMatch(item.note || '', query) || fuzzyMatch(item.dependenciesText || '', query) ||
          fuzzyMatch(serials[item.id] || '', query);
 }
@@ -443,22 +539,83 @@ document.getElementById('tabDashBtn').onclick = () => { activeTab = 'dashboard';
 document.getElementById('tabActBtn').onclick = () => { activeTab = 'activities'; renderAll(); };
 
 function renderAll(){
+  // Login gate: the entire application sits behind sign-in
+  document.getElementById('loginView').style.display = isAuthenticated ? 'none' : 'block';
+  if(!isAuthenticated){
+    ['landingView','dashboardView','activitiesView'].forEach(id => document.getElementById(id).style.display = 'none');
+    document.getElementById('tabsBar').style.display = 'none';
+    document.getElementById('projBackBtn').style.display = 'none';
+    document.getElementById('logoutBtn').style.display = 'none';
+    document.getElementById('tokenBar').style.display = 'none';
+    document.getElementById('lockStatus').style.display = 'none';
+    document.getElementById('projTitle').textContent = 'SASREF SAP Business Transformation Programs';
+    ensureRoster();
+    return;
+  }
+  document.getElementById('logoutBtn').style.display = 'block';
+
+  const onLanding = !currentProject;
+  document.getElementById('landingView').style.display = onLanding ? 'block' : 'none';
+  document.getElementById('tabsBar').style.display = onLanding ? 'none' : 'flex';
+  document.getElementById('projBackBtn').style.display = onLanding ? 'none' : 'block';
+  document.getElementById('projTitle').textContent = onLanding ? 'SASREF SAP Business Transformation Programs' : (PROJECTS.find(p => p.id === currentProject) || {}).name || '';
+
+  if(onLanding){
+    document.getElementById('dashboardView').style.display = 'none';
+    document.getElementById('activitiesView').style.display = 'none';
+    document.getElementById('lockStatus').style.display = 'none';
+    renderLanding();
+    return;
+  }
+
   document.getElementById('tabDashBtn').classList.toggle('active', activeTab === 'dashboard');
   document.getElementById('tabActBtn').classList.toggle('active', activeTab === 'activities');
   document.getElementById('dashboardView').style.display = activeTab === 'dashboard' ? 'block' : 'none';
   document.getElementById('activitiesView').style.display = activeTab === 'activities' ? 'block' : 'none';
 
   const onActivities = activeTab === 'activities';
-  document.getElementById('tokenBar').style.display = onActivities ? 'flex' : 'none';
   document.getElementById('lockStatus').style.display = onActivities ? 'block' : 'none';
 
   const status = document.getElementById('lockStatus');
   status.innerHTML =
-    `<span class="tag ${hasTeamAccess() ? 'on' : ''}">${hasTeamAccess() ? '🔓' : '🔒'} Team: ${hasTeamAccess() ? 'unlocked' : 'locked'}</span>` +
-    `<span class="tag ${hasStructuralAccess() ? 'on' : ''}">${hasStructuralAccess() ? '🔓' : '🔒'} TL: ${hasTL || hasPM ? 'unlocked' : 'locked'}</span>` +
-    `<span class="tag ${hasPlannedAccess() ? 'on' : ''}">${hasPlannedAccess() ? '🔓' : '🔒'} PM: ${hasPM ? 'unlocked' : 'locked'}</span>`;
+    `<span class="tag on">👤 ${escapeHtml(currentUserName || '')}</span>` +
+    `<span class="tag ${hasTeamAccess() ? 'on' : ''}">${hasTeamAccess() ? '🔓' : '🔒'} Team</span>` +
+    `<span class="tag ${hasStructuralAccess() ? 'on' : ''}">${hasStructuralAccess() ? '🔓' : '🔒'} TL</span>` +
+    `<span class="tag ${hasPlannedAccess() ? 'on' : ''}">${hasPlannedAccess() ? '🔓' : '🔒'} PM</span>`;
 
   if(activeTab === 'dashboard') renderDashboard(); else renderActivities();
+}
+
+// ---- Project landing page ----
+function renderLanding(){
+  const el = document.getElementById('landingView');
+  const cards = PROJECTS.map(p => {
+    const its = itemsFor(p.id);
+    const leaves = its.filter(i => !its.some(c => c.parentId === i.id));
+    const avg = leaves.length ? Math.round(leaves.reduce((s,i)=> s + Number(i.progress||0), 0) / leaves.length) : 0;
+    const delayed = its.filter(isDelayed).length;
+    return `
+      <div class="proj-card" data-project-id="${p.id}">
+        <div class="proj-name">${escapeHtml(p.name)}</div>
+        <div class="proj-stats">
+          <span><b>${its.length}</b> line item(s)</span>
+          <span><b>${avg}%</b> progress</span>
+          ${delayed ? `<span class="late">${delayed} delayed</span>` : '<span>on schedule</span>'}
+        </div>
+        <div class="bar-bg"><div class="bar-fill" style="width:${avg}%"></div></div>
+      </div>`;
+  }).join('');
+
+  el.innerHTML = `<div class="landing-title">Select a project to open its dashboard and activities</div>` + cards;
+
+  el.querySelectorAll('[data-project-id]').forEach(card => {
+    card.onclick = () => {
+      currentProject = card.getAttribute('data-project-id');
+      activeTab = 'dashboard';
+      currentParentId = null; editingId = null; searchQuery = ''; selectedOwner = null;
+      renderAll();
+    };
+  });
 }
 
 // ---- Dashboard ---- (unchanged from before)
@@ -485,35 +642,40 @@ function renderDashboard(){
     : '<div class="empty-note">No activities yet.</div>';
 
   const counts = {};
+  const pItems = projectItems();
   STATUS_OPTIONS.forEach(s => counts[s.v] = 0);
-  items.forEach(i => { const st = effectiveStatus(i); if(counts[st] !== undefined) counts[st]++; });
-  const total = items.length || 1;
+  pItems.forEach(i => { const st = effectiveStatus(i); if(counts[st] !== undefined) counts[st]++; });
+  const total = pItems.length || 1;
   let cumulative = 0;
   const gradientParts = STATUS_OPTIONS.map(s => {
     const pct = (counts[s.v] / total) * 100;
     const start = cumulative; cumulative += pct;
     return `${s.hex} ${start}% ${cumulative}%`;
   }).join(', ');
-  const donutStyle = items.length ? `background: conic-gradient(${gradientParts});` : `background:#262e45;`;
+  const donutStyle = pItems.length ? `background: conic-gradient(${gradientParts});` : `background:#262e45;`;
   const legendHtml = STATUS_OPTIONS.map(s => `
     <div class="legend-item"><span class="legend-swatch" style="background:${s.hex}"></span><span>${s.v}</span><span class="legend-count">${counts[s.v]}</span></div>`).join('');
 
   const ownerMap = {};
-  items.forEach(i => { const o = i.owner || 'Unassigned'; if(!ownerMap[o]) ownerMap[o] = []; ownerMap[o].push(i); });
+  pItems.forEach(i => { const o = i.owner || 'Unassigned'; if(!ownerMap[o]) ownerMap[o] = []; ownerMap[o].push(i); });
   const ownerEntries = Object.entries(ownerMap);
   const maxCount = ownerEntries.length ? Math.max(...ownerEntries.map(([,t]) => t.length)) : 1;
   const minSize = 46, maxSize = 100;
   const bubbleHtml = ownerEntries.length ? ownerEntries.map(([owner, tasks]) => {
+    const hasRisk = tasks.some(t => { const s = effectiveStatus(t); return s === 'At Risk' || s === 'Blocked'; });
     const hasDelay = tasks.some(t => isDelayed(t));
     const size = Math.round(minSize + (tasks.length / maxCount) * (maxSize - minSize));
     const isSelected = selectedOwner === owner;
+    const colorClass = (hasRisk || hasDelay) ? 'bubble-red' : 'bubble-green';
+    const flashClass = hasRisk ? 'bubble-risk' : '';
+    const caption = hasRisk ? 'at risk' : (hasDelay ? 'has delays' : 'on track');
     return `
       <div class="bubble-item">
-        <div class="bubble ${hasDelay ? 'bubble-red' : 'bubble-green'} ${isSelected ? 'selected' : ''}"
+        <div class="bubble ${colorClass} ${flashClass} ${isSelected ? 'selected' : ''}"
              style="width:${size}px;height:${size}px;font-size:${Math.max(12, size*0.28)}px;"
              data-owner="${escapeAttr(owner)}" title="${escapeAttr(owner)} — ${tasks.length} task(s)">${tasks.length}</div>
         <div class="bubble-label">${escapeHtml(owner)}</div>
-        <div class="bubble-count">${hasDelay ? 'has delays' : 'on track'}</div>
+        <div class="bubble-count">${caption}</div>
       </div>`;
   }).join('') : '<div class="empty-note">No owners assigned yet.</div>';
 
@@ -527,7 +689,7 @@ function renderDashboard(){
     ownerDetailHtml = `<div class="owner-detail"><div class="owner-detail-title">${escapeHtml(selectedOwner)}'s items</div>${rows}</div>`;
   }
 
-  const chartItems = items.filter(i => childrenOf(i.id).length === 0 && (!selectedOwner || i.owner === selectedOwner));
+  const chartItems = pItems.filter(i => childrenOf(i.id).length === 0 && (!selectedOwner || i.owner === selectedOwner));
   const chartHtml = buildProgressChart(chartItems);
 
   el.innerHTML = `
@@ -618,7 +780,7 @@ function renderActivities(){
   let bodyHtml = '';
 
   if(query){
-    const matches = items.filter(i => itemMatchesSearch(i, query, serials));
+    const matches = projectItems().filter(i => itemMatchesSearch(i, query, serials));
     bodyHtml += `<div class="search-meta">${matches.length} match(es) for "${escapeHtml(query)}"</div>`;
     if(matches.length === 0){
       bodyHtml += `<div class="row-list"><div class="row-empty-note">No activities match "${escapeHtml(query)}".</div></div>`;
@@ -669,6 +831,10 @@ function renderActivities(){
       </div>
       <div class="empty-note" style="margin-top:6px;">PM only — export activities, edit in Excel, re-import. Rows with an ID update existing items; rows without an ID create new ones (Serial sets the parent, e.g. 1.2 goes under 1). Import never deletes items.</div>`;
     }
+
+    if(hasPlannedAccess()){
+      bodyHtml += adminConsoleHtml();
+    }
   }
 
   el.innerHTML = searchBar + bodyHtml;
@@ -684,7 +850,7 @@ function compactRow(item, serials, opts){
       <span class="row-dot ${statusDot(status)}"></span>
       <div class="row-titlewrap">
         <div class="row-title">${escapeHtml(item.title)}</div>
-        <div class="row-owner">${opts.pathLabel ? escapeHtml(opts.pathLabel) : escapeHtml(item.owner || 'Unassigned')}</div>
+        <div class="row-owner">${opts.pathLabel ? escapeHtml(opts.pathLabel) : escapeHtml(item.owner || 'Unassigned') + (item.department ? ' · ' + escapeHtml(item.department) : '')}</div>
       </div>
       <span class="row-pct">${progress}%</span>
       <span class="row-chevron">›</span>
@@ -701,7 +867,7 @@ function detailViewCard(item, serials){
       <div class="detail-head">
         <div>
           <div class="detail-title">${serials[item.id] || ''} ${escapeHtml(item.title)}</div>
-          <div class="detail-owner">${escapeHtml(item.owner || 'Unassigned')}</div>
+          <div class="detail-owner">${escapeHtml(item.owner || 'Unassigned')}${item.department ? ' · ' + escapeHtml(item.department) : ''}</div>
         </div>
         <span class="status-pill ${statusClass(status)}">${status}</span>
       </div>
@@ -716,7 +882,7 @@ function detailViewCard(item, serials){
       </div>
       ${item.dependenciesText ? `<div class="dep-line">Dependencies: ${escapeHtml(item.dependenciesText)}</div>` : ''}
       ${item.note ? `<div class="note">${escapeHtml(item.note)}</div>` : ''}
-      <div class="meta">Updated ${formatTime(item.updated)}</div>
+      <div class="meta">Updated ${formatTime(item.updated)}${item.updatedBy ? ' by ' + escapeHtml(item.updatedBy) : ''}</div>
       <div class="btn-row">
         <button class="btn-edit" id="editCurrentBtn">Edit</button>
         ${hasStructuralAccess() ? `<button class="btn-del" id="delCurrentBtn">Delete</button>` : ''}
@@ -739,6 +905,9 @@ function detailEditCard(item){
 
         <label class="edit-label pm-label">Owner ${structOk ? '' : '(TL/PM only)'}</label>
         <input type="text" id="f-owner" value="${escapeAttr(item.owner||'')}" ${structOk ? '' : 'disabled'} />
+
+        <label class="edit-label pm-label">Department ${structOk ? '' : '(TL/PM only)'}</label>
+        <input type="text" id="f-dept" value="${escapeAttr(item.department||'')}" ${structOk ? '' : 'disabled'} />
 
         <label class="edit-label">Status</label>
         <select id="f-status" ${progressLocked ? 'disabled' : ''}>
@@ -824,6 +993,47 @@ function wireActivitiesEvents(){
     importBtn.onclick = () => importInput.click();
     importInput.onchange = (e) => { const f = e.target.files[0]; if(f) importFromExcel(f); importInput.value = ''; };
   }
+
+  const adminToggleBtn = document.getElementById('adminToggleBtn');
+  if(adminToggleBtn) adminToggleBtn.onclick = () => {
+    adminOpen = !adminOpen;
+    renderActivities();
+    if(adminOpen && adminUsers === null) loadAdminUsers();
+  };
+  const adminAddBtn = document.getElementById('adminAddBtn');
+  if(adminAddBtn) adminAddBtn.onclick = async () => {
+    const name = document.getElementById('adminNewName').value.trim();
+    const role = document.getElementById('adminNewRole').value;
+    if(!name){ showToast('Enter the person\'s name'); return; }
+    try {
+      const data = await adminCall('/admin/add', { name, role });
+      showToast(`${name} added — invite code: ${data.inviteCode}`);
+      adminUsers = null;
+      loadAdminUsers();
+    } catch(e){ showToast('Could not add user (duplicate name?)'); }
+  };
+  document.querySelectorAll('[data-admin-reset]').forEach(b => {
+    b.onclick = async () => {
+      const name = b.getAttribute('data-admin-reset');
+      try {
+        const data = await adminCall('/admin/reset', { name });
+        showToast(`${name} reset — new invite code: ${data.inviteCode}`);
+        adminUsers = null;
+        loadAdminUsers();
+      } catch(e){ showToast('Reset failed'); }
+    };
+  });
+  document.querySelectorAll('[data-admin-remove]').forEach(b => {
+    b.onclick = async () => {
+      const name = b.getAttribute('data-admin-remove');
+      try {
+        await adminCall('/admin/remove', { name });
+        showToast(`${name} removed`);
+        adminUsers = null;
+        loadAdminUsers();
+      } catch(e){ showToast('Remove failed'); }
+    };
+  });
 }
 
 async function saveEdit(id){
@@ -837,6 +1047,7 @@ async function saveEdit(id){
   if(structOk){
     item.title = document.getElementById('f-title').value.trim() || 'Untitled';
     item.owner = document.getElementById('f-owner').value.trim();
+    item.department = document.getElementById('f-dept').value.trim();
   }
   if(pmOk){
     item.plannedDate = document.getElementById('f-planned').value;
@@ -854,6 +1065,7 @@ async function saveEdit(id){
   item.dependenciesText = document.getElementById('f-deps').value.trim();
   item.note = document.getElementById('f-note').value.trim();
   item.updated = new Date().toISOString();
+  item.updatedBy = currentUserName || 'Unknown';
 
   editingId = null;
   showProcessing('Saving your changes…');
@@ -879,7 +1091,7 @@ async function deleteItem(id){
 function addItem(parentId){
   if(!hasStructuralAccess()){ showToast('Unlock with a TL or PM code to add items'); return; }
   const newItem = {
-    id: uid(), parentId, title: parentId ? 'New Sub-item' : 'New Leading Activity', owner: '', status: 'On Track', progress: 0,
+    id: uid(), parentId, project: currentProject, title: parentId ? 'New Sub-item' : 'New Leading Activity', owner: '', department: '', status: 'On Track', progress: 0,
     plannedDate: '', etc: '', note: '', dependenciesText: '', progressHistory: [], updated: new Date().toISOString()
   };
   items.push(newItem);
@@ -898,12 +1110,13 @@ function exportToExcel(){
   setTimeout(() => {
     try {
       const serials = computeSerials();
-      const ordered = items.slice().sort((a,b) => serialSortKey(serials[a.id]).localeCompare(serialSortKey(serials[b.id])));
+      const ordered = projectItems().slice().sort((a,b) => serialSortKey(serials[a.id]).localeCompare(serialSortKey(serials[b.id])));
       const rows = ordered.map(i => ({
         ID: i.id,
         Serial: serials[i.id] || '',
         Title: i.title,
         Owner: i.owner || '',
+        Department: i.department || '',
         Status: i.status,
         Progress: i.progress,
         PlannedDate: i.plannedDate || '',
@@ -911,8 +1124,8 @@ function exportToExcel(){
         Dependencies: i.dependenciesText || '',
         Comments: i.note || ''
       }));
-      const ws = XLSX.utils.json_to_sheet(rows, { header: ['ID','Serial','Title','Owner','Status','Progress','PlannedDate','ActualDate','Dependencies','Comments'] });
-      ws['!cols'] = [{wch:24},{wch:8},{wch:32},{wch:18},{wch:10},{wch:9},{wch:12},{wch:12},{wch:28},{wch:36}];
+      const ws = XLSX.utils.json_to_sheet(rows, { header: ['ID','Serial','Title','Owner','Department','Status','Progress','PlannedDate','ActualDate','Dependencies','Comments'] });
+      ws['!cols'] = [{wch:24},{wch:8},{wch:32},{wch:18},{wch:16},{wch:10},{wch:9},{wch:12},{wch:12},{wch:28},{wch:36}];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Activities');
       XLSX.writeFile(wb, 'project-activities.xlsx');
@@ -950,7 +1163,7 @@ async function importFromExcel(file){
     // Seed serial->id with existing items so new rows can attach to existing parents
     const serials = computeSerials();
     const serialToId = {};
-    items.forEach(i => { if(serials[i.id]) serialToId[serials[i.id]] = i.id; });
+    projectItems().forEach(i => { if(serials[i.id]) serialToId[serials[i.id]] = i.id; });
 
     // Parents before children: sort by serial depth
     const sorted = rows.slice().sort((a,b) => String(a.Serial||'').split('.').length - String(b.Serial||'').split('.').length);
@@ -966,6 +1179,7 @@ async function importFromExcel(file){
       if(existing){
         existing.title = title;
         existing.owner = String(r.Owner||'').trim();
+        existing.department = String(r.Department||'').trim();
         existing.status = validStatus(String(r.Status||'').trim());
         const np = Math.max(0, Math.min(100, Number(r.Progress) || 0));
         if(np !== existing.progress){
@@ -978,6 +1192,7 @@ async function importFromExcel(file){
         existing.dependenciesText = String(r.Dependencies||'').trim();
         existing.note = String(r.Comments||'').trim();
         existing.updated = new Date().toISOString();
+        existing.updatedBy = currentUserName || 'PM';
         if(serial) serialToId[serial] = existing.id;
         updated++;
       } else {
@@ -988,15 +1203,16 @@ async function importFromExcel(file){
           if(!parentId){ skipped++; return; } // parent serial not found — skip rather than orphan
         }
         const ni = {
-          id: uid(), parentId, title,
+          id: uid(), parentId, project: currentProject, title,
           owner: String(r.Owner||'').trim(),
+          department: String(r.Department||'').trim(),
           status: validStatus(String(r.Status||'').trim()),
           progress: Math.max(0, Math.min(100, Number(r.Progress) || 0)),
           plannedDate: toDateStr(r.PlannedDate),
           etc: toDateStr(r.ActualDate),
           dependenciesText: String(r.Dependencies||'').trim(),
           note: String(r.Comments||'').trim(),
-          progressHistory: [], updated: new Date().toISOString()
+          progressHistory: [], updated: new Date().toISOString(), updatedBy: currentUserName || 'PM'
         };
         if(ni.progress > 0) ni.progressHistory.push({ progress: ni.progress, date: ni.updated });
         items.push(ni);
@@ -1015,38 +1231,125 @@ async function importFromExcel(file){
 }
 
 // ---- Unlock ----
-document.getElementById('unlockBtn').onclick = async () => {
-  const val = document.getElementById('unlockTokenInput').value.trim();
-  if(!val){ showToast('Enter your access code first'); return; }
-  if(!WORKER_CONFIGURED){ showToast('Worker URL not set up in this file yet'); return; }
+// ---- Authentication: roster, login, register, master code ----
+function applyRole(role, name){
+  hasPM = role === 'pm';
+  hasTL = hasPM || role === 'tl';
+  hasTeam = true;
+  currentUserName = name || null;
+}
 
-  const btn = document.getElementById('unlockBtn');
-  btn.disabled = true; btn.textContent = 'Checking…';
-  try {
-    const res = await fetch(`${WORKER_URL}/auth`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: val })
-    });
-    if(!res.ok){ showToast('Code not recognized'); return; }
-    const data = await res.json();
-    unlockCode = val;
-    hasPM = data.role === 'pm';
-    hasTL = hasPM || data.role === 'tl';
-    hasTeam = true;
-    document.getElementById('unlockTokenInput').value = '';
-    document.getElementById('unlockTokenInput').placeholder = (data.role || 'team').toUpperCase() + ' access unlocked';
-    renderAll();
-    showToast((data.role || 'team').toUpperCase() + ' access granted');
-  } catch(e){
-    console.error(e);
-    showToast('Could not reach the server — check connection');
-  } finally {
-    btn.disabled = false; btn.textContent = 'Unlock';
-  }
+async function ensureRoster(){ /* dropdowns removed — usernames are typed; nothing to prefetch */ }
+
+document.getElementById('showRegisterBtn').onclick = () => {
+  document.getElementById('loginRow').style.display = 'none';
+  document.getElementById('registerRow').style.display = 'flex';
+};
+document.getElementById('showLoginBtn').onclick = () => {
+  document.getElementById('registerRow').style.display = 'none';
+  document.getElementById('loginRow').style.display = 'flex';
 };
 
+document.getElementById('loginBtn').onclick = async () => {
+  const name = document.getElementById('loginName').value.trim();
+  const code = document.getElementById('loginCode').value.trim();
+  if(!name || !code){ showToast('Enter your username and passcode'); return; }
+  try {
+    const res = await fetch(`${WORKER_URL}/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, code }) });
+    if(!res.ok){ showToast('Login failed — check your code'); return; }
+    const data = await res.json();
+    sessionAuth = { name, code };
+    applyRole(data.role, name);
+    isAuthenticated = true;
+    document.getElementById('loginCode').value = '';
+    renderAll();
+    showToast(`Welcome ${name} — ${(data.role||'team').toUpperCase()} access`);
+  } catch(e){ console.error(e); showToast('Could not reach the server'); }
+};
+
+document.getElementById('registerBtn').onclick = async () => {
+  const name = document.getElementById('regName').value.trim();
+  const invite = document.getElementById('regInvite').value.trim();
+  const c1 = document.getElementById('regCode').value;
+  const c2 = document.getElementById('regCode2').value;
+  if(!name || !invite){ showToast('Enter your name and the PM invite code'); return; }
+  if(c1.length < 4){ showToast('Passcode must be at least 4 characters'); return; }
+  if(c1 !== c2){ showToast('Passcodes do not match — confirm again'); return; }
+  try {
+    const res = await fetch(`${WORKER_URL}/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, inviteCode: invite, newCode: c1 }) });
+    if(!res.ok){ showToast('Activation failed — check the invite code'); return; }
+    const data = await res.json();
+    sessionAuth = { name, code: c1 };
+    applyRole(data.role, name);
+    isAuthenticated = true;
+    document.getElementById('registerRow').style.display = 'none';
+    document.getElementById('loginRow').style.display = 'flex';
+    ['regInvite','regCode','regCode2'].forEach(id => document.getElementById(id).value = '');
+    renderAll();
+    showToast(`Activated — welcome ${name} (${(data.role||'team').toUpperCase()})`);
+  } catch(e){ console.error(e); showToast('Could not reach the server'); }
+};
+
+// ---- PM Admin Console ----
+async function adminCall(path, payload){
+  const res = await fetch(`${WORKER_URL}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auth: sessionAuth, ...payload }) });
+  if(!res.ok) throw new Error('Admin call failed: ' + res.status);
+  return res.json();
+}
+async function loadAdminUsers(){
+  try { adminUsers = (await adminCall('/admin/list', {})).users || []; }
+  catch(e){ console.error(e); adminUsers = []; showToast('Could not load user list'); }
+  renderActivities();
+}
+function adminConsoleHtml(){
+  let inner = '';
+  if(adminOpen){
+    if(adminUsers === null){
+      inner = '<div class="empty-note">Loading users…</div>';
+    } else {
+      const rows = adminUsers.map(u => `
+        <div class="admin-row">
+          <div class="admin-user">${escapeHtml(u.name)}<span class="admin-role">${(u.role||'team').toUpperCase()}</span></div>
+          <div class="admin-state">${u.active ? '<span class="ok">Active</span>' : `<span class="pend">Pending</span><span class="invite-chip">${escapeHtml(u.inviteCode||'')}</span>`}</div>
+          <div class="admin-actions">
+            <button class="btn-cancel" data-admin-reset="${escapeAttr(u.name)}">Reset</button>
+            <button class="btn-del" data-admin-remove="${escapeAttr(u.name)}">Remove</button>
+          </div>
+        </div>`).join('') || '<div class="empty-note">No users onboarded yet.</div>';
+      inner = `
+        <div class="admin-add">
+          <input type="text" id="adminNewName" placeholder="Full name (match Owner field)" />
+          <select id="adminNewRole"><option value="team">Team</option><option value="tl">TL</option><option value="pm">PM</option></select>
+          <button class="btn-save" id="adminAddBtn">Add &amp; Generate Code</button>
+        </div>
+        ${rows}
+        <div class="empty-note" style="margin-top:8px;">Share each Pending invite code privately with that person. They use it once in Register, then set their own personal code. Reset regenerates a code if someone forgets theirs.</div>`;
+    }
+  }
+  return `
+    <div class="admin-card">
+      <button class="btn-edit" id="adminToggleBtn" style="width:100%;">👑 PM Admin Console ${adminOpen ? '▴' : '▾'}</button>
+      ${inner}
+    </div>`;
+}
+
 // ---- Init ----
+document.getElementById('logoutBtn').onclick = () => {
+  sessionAuth = null; currentUserName = null;
+  hasPM = false; hasTL = false; hasTeam = false;
+  isAuthenticated = false;
+  currentProject = null; currentParentId = null; editingId = null;
+  searchQuery = ''; selectedOwner = null; adminOpen = false; adminUsers = null;
+  renderAll();
+  showToast('Logged out');
+};
+
+document.getElementById('projBackBtn').onclick = () => {
+  currentProject = null;
+  currentParentId = null; editingId = null; searchQuery = ''; selectedOwner = null;
+  renderAll();
+};
+
 if(!WORKER_CONFIGURED){
   document.getElementById('setupBanner').style.display = 'block';
   document.getElementById('setupBanner').textContent = '⚠️ Setup incomplete — paste your Cloudflare Worker URL into WORKER_URL near the top of the script.';
