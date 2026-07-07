@@ -275,7 +275,7 @@
   <button class="proj-back" id="logoutBtn" style="display:none; float:right;">Logout</button>
   <button class="proj-back" id="projBackBtn" style="display:none;">‹ All Projects</button>
   <h1 id="projTitle">SASREF SAP Business Transformation Programs</h1>
-  <div class="sub">Live status report · SASREF · v4.9</div>
+  <div class="sub">Live status report · SASREF · v5.1</div>
   <div class="tabs" id="tabsBar" style="display:none;">
     <button class="tab-btn active" id="tabDashBtn">Dashboard</button>
     <button class="tab-btn" id="tabActBtn">Project Activities</button>
@@ -676,12 +676,16 @@ function renderDashboard(){
   // Report level: Key Milestones (top level) vs Leading Milestones (first sub-level only, no deeper branches)
   const firstSubLevel = pItems.filter(i => i.parentId && tops.some(t => t.id === i.parentId));
   const scoped = dashLevel === 'leading' ? tops : firstSubLevel;
+  // Planned vs Actual + Overall follow the selected level; Status Distribution,
+  // Activity Heat Map and Progress History consider ALL items combined when
+  // viewing Leading Milestones.
+  const statsScope = dashLevel === 'leading' ? scoped : pItems;
   const levelSelector = `
     <div class="dash-card" style="padding:12px 16px;">
       <span class="filter-label">Report Level</span>
       <select id="dashLevelSelect" class="dash-level-select">
         <option value="leading" ${dashLevel === 'leading' ? 'selected' : ''}>Key Milestones</option>
-        <option value="detailed" ${dashLevel === 'detailed' ? 'selected' : ''}>Leading Milestones</option>
+        <option value="detailed" ${dashLevel === 'detailed' ? 'selected' : ''}>Sub Milestones</option>
       </select>
     </div>`;
 
@@ -704,20 +708,20 @@ function renderDashboard(){
 
   const counts = {};
   STATUS_OPTIONS.forEach(s => counts[s.v] = 0);
-  scoped.forEach(i => { const st = effectiveStatus(i); if(counts[st] !== undefined) counts[st]++; });
-  const total = scoped.length || 1;
+  statsScope.forEach(i => { const st = effectiveStatus(i); if(counts[st] !== undefined) counts[st]++; });
+  const total = statsScope.length || 1;
   let cumulative = 0;
   const gradientParts = STATUS_OPTIONS.map(s => {
     const pct = (counts[s.v] / total) * 100;
     const start = cumulative; cumulative += pct;
     return `${s.hex} ${start}% ${cumulative}%`;
   }).join(', ');
-  const donutStyle = scoped.length ? `background: conic-gradient(${gradientParts});` : `background:#262e45;`;
+  const donutStyle = statsScope.length ? `background: conic-gradient(${gradientParts});` : `background:#262e45;`;
   const legendHtml = STATUS_OPTIONS.map(s => `
     <div class="legend-item"><span class="legend-swatch" style="background:${s.hex}"></span><span>${s.v}</span><span class="legend-count">${counts[s.v]}</span></div>`).join('');
 
   const ownerMap = {};
-  scoped.forEach(i => { const o = i.owner || 'Unassigned'; if(!ownerMap[o]) ownerMap[o] = []; ownerMap[o].push(i); });
+  statsScope.forEach(i => { const o = i.owner || 'Unassigned'; if(!ownerMap[o]) ownerMap[o] = []; ownerMap[o].push(i); });
   const ownerEntries = Object.entries(ownerMap);
   const maxCount = ownerEntries.length ? Math.max(...ownerEntries.map(([,t]) => t.length)) : 1;
   const minSize = 46, maxSize = 100;
@@ -756,7 +760,7 @@ function renderDashboard(){
     ${levelSelector}
     <div class="dash-card">
       <h2>Overall Progress</h2>
-      <div class="overall-top"><span>${dashLevel === 'leading' ? 'Across key milestones' : 'Across leading milestones'}</span><span class="overall-pct">${overallAvg}%</span></div>
+      <div class="overall-top"><span>${dashLevel === 'leading' ? 'Across key milestones' : 'Across sub milestones'}</span><span class="overall-pct">${overallAvg}%</span></div>
       <div class="bar-bg"><div class="bar-fill" style="width:${overallAvg}%"></div></div>
     </div>
     <div class="dash-card"><h2>Planned vs Actual</h2>${pvaRows}</div>
