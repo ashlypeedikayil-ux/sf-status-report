@@ -275,7 +275,7 @@
   <button class="proj-back" id="logoutBtn" style="display:none; float:right;">Logout</button>
   <button class="proj-back" id="projBackBtn" style="display:none;">‹ All Projects</button>
   <h1 id="projTitle">SASREF SAP Business Transformation Programs</h1>
-  <div class="sub">Live status report · SASREF · v5.1</div>
+  <div class="sub">Live status report · SASREF · v5.2</div>
   <div class="tabs" id="tabsBar" style="display:none;">
     <button class="tab-btn active" id="tabDashBtn">Dashboard</button>
     <button class="tab-btn" id="tabActBtn">Project Activities</button>
@@ -359,6 +359,7 @@ let adminOpen = false;
 let isAuthenticated = false; // login gate — nothing renders until signed in
 let chatMessages = [];       // Ask AI conversation for the current project (memory only)
 let chatBusy = false;
+let chatDraft = '';          // preserves the question being typed across re-renders
 let dashLevel = 'leading';   // Dashboard report level: 'leading' (high level) or 'detailed' (sub-items)
 
 // ---- Projects ----
@@ -454,21 +455,26 @@ async function saveToGist(){
     return true;
   } catch(e){ console.error(e); showToast('Save failed — check connection'); return false; }
 }
+function userIsTyping(){
+  const a = document.activeElement;
+  return !!(a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT'));
+}
+
+let dataLoadedOnce = false;
 async function loadItems(showErr){
   if(!GIST_CONFIGURED){ if(items.length === 0) items = defaultItems(); renderAll(); return; }
   try {
     const fresh = await fetchFromGist();
-    if(!editingId){
-      // The stored data is the truth — including an empty list.
-      // (Previously an empty list re-seeded demo items, which made
-      // deleted entries appear to "come back".)
-      items = fresh;
-      renderAll();
-    }
+    // Never re-render while the user is interacting — editing, typing in
+    // search/dates/chat, or mid-request. Background sync waits its turn.
+    if(editingId || userIsTyping() || chatBusy) return;
+    const changed = JSON.stringify(fresh) !== JSON.stringify(items);
+    items = fresh;
+    if(!dataLoadedOnce){ dataLoadedOnce = true; renderAll(); }
+    else if(changed) renderAll(); // only repaint when data actually changed
   } catch(e){
     console.error(e);
     if(showErr) showToast('Could not load from server');
-    renderAll();
   }
 }
 async function persist(successMsg){
@@ -660,7 +666,7 @@ function renderLanding(){
       currentProject = card.getAttribute('data-project-id');
       activeTab = 'dashboard';
       currentParentId = null; editingId = null; searchQuery = ''; selectedOwner = null;
-      dateFrom = ''; dateTo = ''; chatMessages = []; chatBusy = false; dashLevel = 'leading';
+      dateFrom = ''; dateTo = ''; chatMessages = []; chatBusy = false; chatDraft = ''; dashLevel = 'leading';
       renderAll();
     };
   });
@@ -1035,10 +1041,13 @@ function detailEditCard(item){
 function wireActivitiesEvents(){
   const searchInput = document.getElementById('searchInput');
   if(searchInput){
-    searchInput.oninput = (e) => { searchQuery = e.target.value; renderActivities(); };
-    if(document.activeElement !== searchInput){
-      const val = searchInput.value; searchInput.focus(); searchInput.setSelectionRange(val.length, val.length);
-    }
+    searchInput.oninput = (e) => {
+      searchQuery = e.target.value;
+      const caret = e.target.selectionStart;
+      renderActivities();
+      const si = document.getElementById('searchInput');
+      if(si){ si.focus(); si.setSelectionRange(caret, caret); }
+    };
   }
   const searchClearBtn = document.getElementById('searchClearBtn');
   if(searchClearBtn) searchClearBtn.onclick = () => { searchQuery = ''; dateFrom = ''; dateTo = ''; renderActivities(); };
@@ -1332,16 +1341,18 @@ function renderAiChat(){
         ${chatBusy ? '<div class="chat-msg assistant typing">Thinking…</div>' : ''}
       </div>
       <div class="chat-input-row">
-        <input type="text" id="chatInput" placeholder="Ask about this project…" ${chatBusy ? 'disabled' : ''} />
+        <input type="text" id="chatInput" placeholder="Ask about this project…" value="${escapeAttr(chatDraft)}" ${chatBusy ? 'disabled' : ''} />
         <button class="btn-unlock" id="chatSendBtn" ${chatBusy ? 'disabled' : ''}>Send</button>
       </div>
     </div>`;
   const log = document.getElementById('chatLog');
   log.scrollTop = log.scrollHeight;
   const input = document.getElementById('chatInput');
+  input.oninput = (e) => { chatDraft = e.target.value; };
   const send = async () => {
-    const q = input.value.trim();
+    const q = (input.value || chatDraft).trim();
     if(!q || chatBusy) return;
+    chatDraft = '';
     chatMessages.push({ role: 'user', text: q });
     chatBusy = true;
     renderAiChat();
