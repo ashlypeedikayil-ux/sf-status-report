@@ -275,7 +275,7 @@
   <button class="proj-back" id="logoutBtn" style="display:none; float:right;">Logout</button>
   <button class="proj-back" id="projBackBtn" style="display:none;">‹ All Projects</button>
   <h1 id="projTitle">SASREF SAP Business Transformation Programs</h1>
-  <div class="sub">Live status report · SASREF · v4.8</div>
+  <div class="sub">Live status report · SASREF · v4.9</div>
   <div class="tabs" id="tabsBar" style="display:none;">
     <button class="tab-btn active" id="tabDashBtn">Dashboard</button>
     <button class="tab-btn" id="tabActBtn">Project Activities</button>
@@ -673,14 +673,15 @@ function renderDashboard(){
   const pItems = projectItems();
   const serials = computeSerials();
 
-  // Report level: leading activities (management view) vs sub-items (team view)
-  const scoped = dashLevel === 'leading' ? tops : pItems.filter(i => i.parentId);
+  // Report level: Key Milestones (top level) vs Leading Milestones (first sub-level only, no deeper branches)
+  const firstSubLevel = pItems.filter(i => i.parentId && tops.some(t => t.id === i.parentId));
+  const scoped = dashLevel === 'leading' ? tops : firstSubLevel;
   const levelSelector = `
     <div class="dash-card" style="padding:12px 16px;">
       <span class="filter-label">Report Level</span>
       <select id="dashLevelSelect" class="dash-level-select">
-        <option value="leading" ${dashLevel === 'leading' ? 'selected' : ''}>Leading Activities (High Level)</option>
-        <option value="detailed" ${dashLevel === 'detailed' ? 'selected' : ''}>Sub-Items (Detailed Level)</option>
+        <option value="leading" ${dashLevel === 'leading' ? 'selected' : ''}>Key Milestones</option>
+        <option value="detailed" ${dashLevel === 'detailed' ? 'selected' : ''}>Leading Milestones</option>
       </select>
     </div>`;
 
@@ -755,7 +756,7 @@ function renderDashboard(){
     ${levelSelector}
     <div class="dash-card">
       <h2>Overall Progress</h2>
-      <div class="overall-top"><span>${dashLevel === 'leading' ? 'Across leading activities' : 'Across sub-items'}</span><span class="overall-pct">${overallAvg}%</span></div>
+      <div class="overall-top"><span>${dashLevel === 'leading' ? 'Across key milestones' : 'Across leading milestones'}</span><span class="overall-pct">${overallAvg}%</span></div>
       <div class="bar-bg"><div class="bar-fill" style="width:${overallAvg}%"></div></div>
     </div>
     <div class="dash-card"><h2>Planned vs Actual</h2>${pvaRows}</div>
